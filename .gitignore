@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Build outputs
+.next/
+dist/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# OS and editor
+.DS_Store
+.vscode/
+.idea/
+
+# Private instructions
+/AGENTS.md
+/docs/
