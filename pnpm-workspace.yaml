@@ -1,0 +1,16 @@
+packages:
+  - apps/*
+  - packages/*
+
+engineStrict: true
+saveExact: true
+
+# Nest's optional donation notice is unnecessary for building or running the API.
+allowBuilds:
+  '@nestjs/core': false
+  unrs-resolver: false
+minimumReleaseAgeExclude:
+  - '@nestjs/common@12.5.0'
+  - '@nestjs/core@12.5.0'
+  - '@nestjs/platform-express@12.5.0'
+  - '@nestjs/testing@12.5.0'
