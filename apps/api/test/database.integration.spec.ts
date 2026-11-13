@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { sql } from '@datascope/db';
+import { sql, migrateDatabase } from '@datascope/db';
 import { readinessResponseSchema } from '@datascope/contracts';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
@@ -76,6 +76,7 @@ describe('real PostgreSQL provider and readiness', () => {
     configureApp(app);
     await app.init();
     database = app.get(DatabaseService);
+    await migrateDatabase(database.pool);
   });
 
   afterAll(async () => {

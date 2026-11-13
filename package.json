@@ -20,7 +20,11 @@
     "db:up": "docker compose up -d --wait postgres",
     "db:test:up": "docker compose --profile test up -d --wait postgres_test",
     "test:integration": "turbo run test:integration",
-    "smoke:db": "node scripts/smoke-api.mjs --ready"
+    "smoke:db": "node scripts/smoke-api.mjs --ready",
+    "db:generate": "pnpm --filter @datascope/db db:generate",
+    "db:check": "pnpm --filter @datascope/db db:check",
+    "db:migrate": "pnpm --filter @datascope/db db:migrate",
+    "db:migrate:test": "pnpm --filter @datascope/db db:migrate:test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

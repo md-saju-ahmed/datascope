@@ -2,8 +2,8 @@
 
 DataScope is being built as a backend-first platform for authorized discovery of
 large business datasets. The current implementation covers **workspace setup,
-PostgreSQL connectivity and health** (BE-01/BE-02). Authentication, domain schema,
-search, data and UI features are subsequent work. Backend gate G1 has not passed.
+PostgreSQL schema, migrations and health** (BE-01–BE-03). Authentication, seed,
+search, data APIs and UI features are subsequent work. Backend gate G1 has not passed.
 
 ## Prerequisites
 
@@ -19,12 +19,15 @@ pnpm install --frozen-lockfile
 pnpm env:init
 pnpm db:up
 pnpm db:test:up
+pnpm build
+pnpm db:migrate
+pnpm db:migrate:test
+pnpm db:check
 pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:integration
-pnpm build
 pnpm smoke:api
 pnpm smoke:db
 ```
@@ -65,12 +68,14 @@ curl http://127.0.0.1:4000/api/v1/health/live
 ```
 
 Expected liveness response: `200` with `{"status":"ok"}`. This proves process
-liveness only. `GET /api/v1/health/ready` runs `SELECT 1` through the shared
-Drizzle/pg pool: 200 with `{"status":"ok","database":"up"}` when connected, or
+liveness only. `GET /api/v1/health/ready` uses the shared PostgreSQL pool:
+200 with `{"status":"ok","database":"up"}` when ready, or
 503 with `{"code":"DATABASE_UNAVAILABLE","message":"Service is not ready"}`.
 No connection URL, credentials, SQL error or database version is returned.
 Liveness remains 200 during a database outage. Readiness currently checks
-connectivity; migration readiness will accompany the schema/migrations in BE-03.
+connectivity, exact migration-history hashes and the presence of all 13 core
+tables. Pending/mismatched/incomplete migrations also return the safe 503 above.
+Startup never applies or repairs migrations automatically.
 The unversioned `/health/live` returns 404.
 
 For local changes, build shared packages with `pnpm build`. Then run
@@ -80,12 +85,12 @@ not configured yet.
 
 ## Workspace boundaries
 
-| Path                    | Responsibility                                             |
-| ----------------------- | ---------------------------------------------------------- |
-| `apps/api`              | NestJS REST application, versioned under `/api/v1`         |
-| `packages/contracts`    | Browser-safe Zod schemas and TypeScript API types          |
-| `packages/db`           | Backend-only pooled pg client and Drizzle database factory |
-| `scripts/smoke-api.mjs` | Compiled-process HTTP boot verification                    |
+| Path                    | Responsibility                                            |
+| ----------------------- | --------------------------------------------------------- |
+| `apps/api`              | NestJS REST application, versioned under `/api/v1`        |
+| `packages/contracts`    | Browser-safe Zod schemas and TypeScript API types         |
+| `packages/db`           | Backend-only Drizzle schema, pooled client and migrations |
+| `scripts/smoke-api.mjs` | Compiled-process HTTP boot verification                   |
 
 Turborepo builds dependencies before their consumers. Strict TypeScript and ESLint
 checks apply to source and tests. Runtime dependencies use exact versions and the
@@ -123,9 +128,41 @@ or volume deletion occurs on application startup. Editing `.env` does not rotate
 credentials already stored in an initialized PostgreSQL volume; do not overwrite
 credentials or delete a populated volume as a troubleshooting shortcut.
 
+## Schema and migration workflow
+
+The schema is declared under `packages/db/src/schema/`; the only canonical SQL
+migration directory is `packages/db/src/migrations/`, including its journal and
+snapshots. [Schema and deletion decisions](technical-docs/database-schema.md)
+describe the model, integrity rules, decimal/bigint handling and migration runner.
+
+```sh
+# Only when intentionally changing the schema:
+pnpm db:generate --name=describe_change
+pnpm db:check
+pnpm build
+pnpm db:migrate
+pnpm db:migrate:test
+```
+
+Review generated SQL before applying it. SQL files retain LF line endings for
+stable hashes; never edit an already applied migration. Trigger SQL lives in a
+separate custom migration in the same directory. No reset or data deletion is
+part of these commands. Local migration CLI commands reject production mode,
+remote hosts, wrong database names and administrator credentials; the test
+command never falls back to development. Production migration execution needs a
+separately approved deployment procedure. API runtime packaging must retain the
+db package's `src/migrations` next to its `dist` directory.
+
+The integration suite additionally creates/removes its own generated-name
+disposable database to test fresh migrations, replay/concurrency, failure
+rollback, schema drift, real constraints and ORM relations. The existing
+development/test databases are not reset. No tests may run concurrently with
+another client restarting the test service.
+
 ## Current limitations
 
-- No domain schema, migration or seed exists yet. Those begin at BE-03.
+- The 13-table schema and migrations exist; the 100k deterministic seed starts at BE-04.
+- Search-vector synchronization and workload indexes remain BE-05; search is not implemented.
 - No protected business endpoint, authentication or dataset permission is implemented.
 - No large-dataset test, benchmark, frontend, deployment or release acceptance is claimed.
 - Required public technical artifacts will be added alongside their verified features.

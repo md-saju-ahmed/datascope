@@ -1,13 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnApplicationShutdown } from '@nestjs/common';
-import { createDatabase, sql } from '@datascope/db';
+import { createDatabase, getMigrationStatus } from '@datascope/db';
+import type { Database } from '@datascope/db';
 import { APP_ENVIRONMENT } from '../config/environment.js';
 import type { AppEnvironment } from '../config/environment.js';
 
 @Injectable()
 export class DatabaseService implements OnApplicationShutdown {
   readonly pool;
-  readonly db;
+  readonly db: Database;
   private readonly logger = new Logger(DatabaseService.name);
 
   constructor(@Inject(APP_ENVIRONMENT) environment: AppEnvironment) {
@@ -27,8 +28,7 @@ export class DatabaseService implements OnApplicationShutdown {
 
   async isReady(): Promise<boolean> {
     try {
-      await this.db.execute(sql`select 1`);
-      return true;
+      return (await getMigrationStatus(this.pool)).ready;
     } catch {
       return false;
     }
