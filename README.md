@@ -3,9 +3,113 @@
 DataScope is being built as a backend-first platform for authorized discovery of
 large business datasets. The current implementation covers **workspace setup,
 PostgreSQL schema, migrations, deterministic seed, search indexes, authentication,
-dataset permissions/management and record detail/relationships/history** (BE-01–BE-09).
-Search, saved-view/history/analytics APIs and UI features are subsequent work. Backend
+dataset permissions/management, record detail/relationships/history and validated
+server-side search** (BE-01–BE-13).
+Saved-view/history-read/analytics APIs and UI features are subsequent work. Backend
 gate G1 has not passed.
+
+## Search API (BE-10–BE-13)
+
+`POST /api/v1/datasets/:datasetId/search` returns HTTP 200 with a bounded page.
+Use the session cookie, trusted Origin and `X-CSRF-Token` from the authentication
+bootstrap/login flow. Even this retrieval POST requires CSRF verification because
+an explicitly applied query can record private history. Responses use `no-store`.
+
+```json
+{
+  "q": "",
+  "conditions": [
+    { "field": "status", "op": "eq", "value": "Active" },
+    { "field": "country", "op": "eq", "value": "Germany" },
+    { "field": "revenue", "op": "gt", "value": "10000.00" },
+    { "field": "createdAt", "op": "gte", "value": "2026-01-01T00:00:00Z" }
+  ],
+  "sort": [{ "field": "revenue", "direction": "desc" }],
+  "columns": ["name", "country", "revenue"],
+  "page": 1,
+  "pageSize": 25
+}
+```
+
+Shared strict schemas are in `packages/contracts/src/search.ts`. Conditions are
+AND-combined. The field must belong to the dataset, be filterable and advertise
+the operator. Basic access permits global `q` and `eq`/`in` on registered
+`status`, `country`, `category` fields. Other conditions require Admin or Analyst
+with analyze/manage permission. Viewer remains basic even with a higher grant.
+Sorting and metadata-approved projections are available to all dataset readers.
+There is no client-supplied permission or advanced-mode bypass.
+
+- Global search uses metadata-maintained `simple` PostgreSQL full-text vectors
+  and `websearch_to_tsquery`, including phrases/web-search syntax. It searches
+  declared searchable text, including configured custom fields; it does not search
+  every attribute, perform substring matching or rank results. Blank `q` lists data.
+- `eq`/`neq` use case-sensitive exact text equality. `contains` is a literal,
+  case-insensitive substring: `%`, `_` and backslash are escaped. The lower(name)
+  trigram index supports eligible name patterns; short terms and other unindexed
+  fields may scan scoped rows. No universal indexed-latency claim is made.
+- Typed operators are `eq`, `neq`, `contains`, `gt`, `gte`, `lt`, `lte`, `between`
+  and `in`, restricted by metadata. Between is inclusive and requires two ordered
+  bounds; in accepts 1–50 values. Numeric inputs are decimal strings (up to 38
+  integer and 18 fractional digits), never floating-point JSON numbers. Boolean
+  inputs are JSON booleans. Dates require explicit timezone-bearing ISO timestamps
+  and normalize to UTC. Relative dates must be resolved by the caller to concrete
+  intervals before execution, URL serialization or reuse.
+- Dynamic JSONB uses guarded typed expressions. Missing, wrong-type or invalid
+  values project as null and do not match comparisons, including `neq`.
+  Numeric JSON values project as strings; date/boolean/text values keep their
+  declared representation. Request text rejects NUL characters.
+- At most 12 conditions, 3 explicit sort fields, 200 global-search characters,
+  500 characters per text value and 100 explicitly projected fields. Page is
+  1–4000; page size is 10/25/50/100 (default 25); offset is at most 100000.
+  Invalid requests return 400 rather than falling back to an unfiltered listing.
+- Sort priority follows the request, with NULLS LAST, text collation C, and a
+  unique ID tie-breaker if absent. Default ordering is the immutable common
+  `createdAt DESC, id DESC`, including when timestamp metadata is not exposed.
+  Explicit non-ID sorts require registered sortable metadata.
+- Projection always includes string `id`; omitted columns use metadata-visible
+  defaults. `isVisible` controls defaults, not a separate field-security grant.
+  Only registered fields may be explicitly selected. Unregistered JSON/internal
+  vectors are never exposed through search; full detail remains a separate API.
+
+Response: `{ data, pageInfo: { page, pageSize, total, totalPages, hasNextPage },
+sort, queryId }`. Sort includes the effective tie-breaker; queryId matches the
+`X-Request-Id` header. Record IDs/decimals remain strings; page totals are checked
+safe integers under the existing pagination contract. One short repeatable-read
+transaction keeps permissions, metadata, rows and exact count on the same snapshot.
+No matches return an empty page/count zero; beyond-last pages return an empty page
+while retaining the exact total. Deep offset and exact counts cost more as data
+grows. No complete dataset is transported to Node or the browser.
+
+Ordinary browsing, pagination and automatic refresh **omit** `X-Search-Intent`.
+Only a completed user-initiated Apply/Enter execution sends `X-Search-Intent: apply`.
+Successful zero-match queries count as executions. History stores a normalized,
+versioned configuration (not records); equivalent AND/in ordering is normalized.
+The same criteria per user/dataset deduplicate for 60 seconds, excluding page,
+sort and columns from duplicate detection. An intentional identical repeat inside
+that window is also deduplicated. A per-user transaction lock serializes writers;
+only the latest 100 entries per user remain, across datasets. Failed queries write
+no history. Recording failure fails the request safely; the bounded history write
+is synchronous. History listing/clearing and saved-view execution remain later work.
+
+Search uses the configured database statement timeout and a 10-second overall
+service deadline (including pool acquisition, after route authentication/guards).
+The deadline destroys the active connection rather than returning running work to
+the pool. Timeouts return controlled 503 `DATABASE_TIMEOUT`/`SEARCH_TIMEOUT` errors;
+other errors use the common safe envelope. There are 60 searches/user/minute and a
+bounded 10000-user rate-window store; 429 includes Retry-After. These counters are
+per process and reset on restart; distributed enforcement is future work.
+HTTP and execution logs include request IDs, outcomes and durations, without query
+values, SQL, cookies or record contents. Authorization changes apply to subsequent
+request snapshots; an already admitted read uses its consistent snapshot.
+
+Focused verification:
+`pnpm test:integration -- --testPathPatterns=search.integration --verbose`.
+This creates/seeds/disposes only a random `datascope_test_seed_*` verifier database,
+including 100000 primary records. It does not reset populated dev/test databases.
+Real tests reconcile the combined fixture against SQL, verify concurrent count/page
+consistency, history deduplication/retention, denial paths and actual timeout cleanup.
+Generated SQL plan samples support index inspection; full API load benchmarks and
+consolidated Swagger documentation remain BE-20/BE-21, and G1 is still unapproved.
 
 ## Dataset and record APIs (BE-07–BE-09)
 
@@ -66,7 +170,7 @@ properties and validate the whole merged definition. There are at most 100 field
 per dataset, enforced under a parent-row lock. Metadata mutations can synchronously
 rebuild FTS vectors and hit the configured statement timeout on large datasets;
 they return controlled failures rather than partial success. Search compilation
-and query endpoint delivery remain BE-10 onward.
+and query execution now use the validated search endpoint above.
 
 Focused verification: `pnpm test:integration -- --testPathPatterns=access.integration --verbose`.
 It creates and disposes only its own `datascope_test_access_*` database. Test-only
@@ -83,7 +187,7 @@ Shared strict request/response schemas live in `packages/contracts/src/auth.ts`.
 | `GET /auth/csrf`      | Returns `{ csrfToken }` and sets an HttpOnly CSRF nonce cookie. No login required.                                         |
 | `POST /auth/register` | JSON `{ email, password }`; 201 `{ data: { id, email, role } }`. Always creates an active Viewer; explicit login follows.  |
 | `POST /auth/login`    | JSON `{ email, password }`; 200 `{ data: { id, email, role }, expiresAt, csrfToken }`; sets a new session and CSRF cookie. |
-| `GET /auth/me`        | Session required; 200 `{ data: { id, email, role } }`. Dataset permissions are added by subsequent backend work.           |
+| `GET /auth/me`        | Session required; 200 `{ data: { id, email, role } }`. Dataset permissions are resolved by dataset-scoped endpoints.       |
 | `POST /auth/logout`   | Session required, JSON `{}`; 200 `{ data: { loggedOut: true }, csrfToken }`; revokes the session and clears its cookie.    |
 
 Configure `APP_ORIGIN` as the exact trusted browser origin, without a path or trailing
@@ -375,7 +479,8 @@ GROUP BY d.id ORDER BY d.slug;
 Seeded grants: the Viewer can read Business Directory; the Analyst has analyze
 grants on both datasets. The Admin has the platform role for the later admin
 authorization policy. The Viewer has no grant on Restricted Partners. These are
-persisted fixtures; authenticated API enforcement is subsequent BE-06/BE-07 work.
+persisted fixtures; authenticated API enforcement is implemented separately by the
+shared session and dataset permission services.
 
 Inserts use parameterized JSON batches of at most 1,000 rows, converted by
 PostgreSQL's `jsonb_to_recordset` inside one Drizzle transaction, serialized by an
@@ -430,8 +535,8 @@ stemming. `dataset_fields.is_searchable` selects string/enum fields: `name`,
 string-valued JSONB properties. Unregistered/disabled fields, numbers, booleans,
 arrays, objects and arbitrary JSONB secrets are excluded. Field sort order then
 key determines token order, including phrase-search behavior across field
-boundaries. All query text/patterns must remain bound values. Global search's API
-validation and empty-query semantics belong to BE-10/BE-11.
+boundaries. All query text/patterns remain bound values. The search endpoint above
+defines validation and empty-query semantics.
 
 Database triggers maintain vectors on insert and relevant record updates,
 including dataset changes and attempted direct vector writes. Metadata
@@ -478,8 +583,8 @@ Reference: PostgreSQL 17 documents [extension privileges](https://www.postgresql
 
 ## Current limitations
 
-- The schema, migrations and 100k local seed exist; no data API serves these rows yet.
-- Search vectors/indexes exist; the validated search compiler and API are subsequent work.
-- No protected business endpoint, authentication or dataset permission is implemented.
+- The schema, migrations, 100k local seed and authorized dataset/record/search APIs exist; saved views, history read/clear, analytics and exports remain pending.
+- Search vectors/indexes and the validated search compiler/API exist; full load benchmarking remains subsequent work.
+- Backend G1 is unapproved; frontend, integrated deployment and final release remain pending.
 - Full-scale seed verification is separate from search benchmarks, frontend, deployment and release acceptance.
 - Required public technical artifacts will be added alongside their verified features.
