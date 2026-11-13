@@ -1,0 +1,46 @@
+name: datascope
+
+x-postgres: &postgres
+  image: postgres:17.12-alpine3.23
+  restart: unless-stopped
+  healthcheck:
+    test:
+      ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+    interval: 2s
+    timeout: 3s
+    retries: 30
+    start_period: 5s
+
+services:
+  postgres:
+    <<: *postgres
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-55431}:5432'
+    environment:
+      POSTGRES_USER: datascope_admin
+      POSTGRES_DB: datascope_dev
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Run pnpm env:init}
+      APP_DB_USER: datascope_app
+      APP_DB_PASSWORD: ${POSTGRES_APP_PASSWORD:?Run pnpm env:init}
+    volumes:
+      - postgres_dev:/var/lib/postgresql/data
+      - ./infra/postgres/init-app-role.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+
+  postgres_test:
+    <<: *postgres
+    profiles: [test]
+    ports:
+      - '127.0.0.1:${POSTGRES_TEST_PORT:-55432}:5432'
+    environment:
+      POSTGRES_USER: datascope_test_admin
+      POSTGRES_DB: datascope_test
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_ADMIN_PASSWORD:?Run pnpm env:init}
+      APP_DB_USER: datascope_test_app
+      APP_DB_PASSWORD: ${POSTGRES_TEST_APP_PASSWORD:?Run pnpm env:init}
+    volumes:
+      - postgres_test:/var/lib/postgresql/data
+      - ./infra/postgres/init-app-role.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+
+volumes:
+  postgres_dev:
+  postgres_test:

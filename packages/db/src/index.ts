@@ -1,2 +1,3 @@
-// Backend-only package boundary. Database connectivity starts in BE-02.
-export {};
+export { createDatabase } from './client.js';
+export type { DatabaseOptions } from './client.js';
+export { sql } from 'drizzle-orm';

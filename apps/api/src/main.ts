@@ -2,20 +2,20 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { configureApp } from './configure-app.js';
+import { APP_ENVIRONMENT, EnvironmentError } from './config/environment.js';
+import type { AppEnvironment } from './config/environment.js';
 
 async function bootstrap(): Promise<void> {
-  const port = Number(process.env.PORT ?? 4000);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error('PORT must be an integer between 1 and 65535');
-  }
-
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { abortOnError: false });
+  const environment = app.get<AppEnvironment>(APP_ENVIRONMENT);
   configureApp(app);
   app.enableShutdownHooks();
-  await app.listen(port, '127.0.0.1');
+  await app.listen(environment.PORT, environment.API_HOST);
 }
 
 bootstrap().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : 'API startup failed');
+  console.error(
+    error instanceof EnvironmentError ? error.message : 'API startup failed',
+  );
   process.exitCode = 1;
 });

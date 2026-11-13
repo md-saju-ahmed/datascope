@@ -15,7 +15,12 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "smoke:api": "node scripts/smoke-api.mjs"
+    "smoke:api": "node scripts/smoke-api.mjs",
+    "env:init": "node scripts/init-local-env.mjs",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:test:up": "docker compose --profile test up -d --wait postgres_test",
+    "test:integration": "turbo run test:integration",
+    "smoke:db": "node scripts/smoke-api.mjs --ready"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

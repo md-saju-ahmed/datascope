@@ -1,2 +1,2 @@
-export { livenessResponseSchema } from './api.js';
-export type { LivenessResponse } from './api.js';
+export { livenessResponseSchema, readinessResponseSchema } from './api.js';
+export type { LivenessResponse, ReadinessResponse } from './api.js';

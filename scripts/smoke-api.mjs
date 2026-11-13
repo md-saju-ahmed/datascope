@@ -16,12 +16,16 @@ await new Promise((resolve, reject) => {
   reservation.close((error) => (error ? reject(error) : resolve()));
 });
 
-const child = spawn(process.execPath, ['dist/main.js'], {
-  cwd: fileURLToPath(new URL('../apps/api/', import.meta.url)),
-  env: { ...process.env, PORT: String(port) },
-  stdio: ['ignore', 'pipe', 'pipe'],
-  windowsHide: true,
-});
+const child = spawn(
+  process.execPath,
+  ['--env-file-if-exists=../../.env', 'dist/main.js'],
+  {
+    cwd: fileURLToPath(new URL('../apps/api/', import.meta.url)),
+    env: { ...process.env, PORT: String(port) },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+  },
+);
 let output = '';
 for (const stream of [child.stdout, child.stderr]) {
   stream.on('data', (chunk) => {
@@ -56,6 +60,16 @@ try {
   assert(response, `API did not become live within 15 seconds:\n${output}`);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { status: 'ok' });
+  if (process.argv.includes('--ready')) {
+    const ready = await fetch(`http://127.0.0.1:${port}/api/v1/health/ready`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    assert.equal(ready.status, 200);
+    assert.deepEqual(await ready.json(), { status: 'ok', database: 'up' });
+    console.log(
+      'PASS: compiled API readiness confirmed the configured PostgreSQL connection',
+    );
+  }
   console.log(
     'PASS: compiled Nest API booted; GET /api/v1/health/live returned 200 {"status":"ok"}',
   );
