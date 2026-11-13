@@ -7,5 +7,6 @@ import { SearchService } from './search.service.js';
   imports: [PermissionsModule],
   controllers: [SearchController],
   providers: [SearchService],
+  exports: [SearchService],
 })
 export class SearchModule {}

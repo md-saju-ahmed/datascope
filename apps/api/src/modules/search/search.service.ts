@@ -5,13 +5,18 @@ import type {
   SearchRequest,
   SearchResponse,
 } from '@datascope/contracts';
-import { searchResponseSchema } from '@datascope/contracts';
+import {
+  searchResponseSchema,
+  searchRequestSchema,
+  savedConfigSchema,
+  savedQuery,
+} from '@datascope/contracts';
 import { DatabaseService } from '../../database/database.service.js';
 import { APP_ENVIRONMENT } from '../../config/environment.js';
 import type { AppEnvironment } from '../../config/environment.js';
 import { PermissionsService } from '../permissions/permissions.service.js';
 import { databaseConflict, pageInfo } from '../../common/access.js';
-import { AuthFailure } from '../auth/auth-http.js';
+import { AuthFailure, validated } from '../auth/auth-http.js';
 import { RateWindows } from '../auth/auth-rate-limit.js';
 import { requestContext } from '../../common/request-context.js';
 import { compileSearch } from './search-compiler.js';
@@ -32,6 +37,32 @@ export class SearchService {
     datasetId: string,
     input: SearchRequest,
     applied = false,
+  ): Promise<SearchResponse> {
+    return this.execute(user, datasetId, input, applied);
+  }
+
+  async applyView(
+    user: CurrentUser,
+    viewId: string,
+    paging: { page: number; pageSize?: 10 | 25 | 50 | 100 | undefined },
+  ): Promise<SearchResponse> {
+    return this.execute(
+      user,
+      '',
+      searchRequestSchema.parse(paging),
+      true,
+      viewId,
+      paging.pageSize,
+    );
+  }
+
+  private async execute(
+    user: CurrentUser,
+    datasetId: string,
+    input: SearchRequest,
+    applied: boolean,
+    viewId?: string,
+    viewPageSize?: 10 | 25 | 50 | 100,
   ): Promise<SearchResponse> {
     const started = Date.now();
     const queryId = requestContext.getStore()?.requestId;
@@ -63,10 +94,25 @@ export class SearchService {
       await client.query("select set_config('statement_timeout', $1, true)", [
         String(this.environment.DB_STATEMENT_TIMEOUT_MS),
       ]);
+      if (viewId) {
+        const view = await this.permissions.ownedOrShared(
+          user,
+          viewId,
+          false,
+          db,
+        );
+        const config = savedQuery(validated(savedConfigSchema, view.config));
+        datasetId = view.datasetId;
+        input = validated(searchRequestSchema, {
+          ...config,
+          page: input.page,
+          pageSize: viewPageSize ?? config.pageSize,
+        });
+      }
       const access = await this.permissions.dataset(
         user,
         datasetId,
-        isAdvanced(input) ? 'analyze' : 'read',
+        !viewId && isAdvanced(input) ? 'analyze' : 'read',
         db,
       );
       const fields = await db
@@ -108,11 +154,14 @@ export class SearchService {
         await this.permissions.dataset(
           user,
           datasetId,
-          isAdvanced(input) ? 'analyze' : 'read',
+          !viewId && isAdvanced(input) ? 'analyze' : 'read',
           db,
         );
+        if (viewId)
+          await this.permissions.ownedOrShared(user, viewId, false, db);
         const normalized = {
           version: 1,
+          ...(viewId ? { savedViewId: viewId } : {}),
           q: query.q,
           conditions: query.conditions,
           sort: input.sort,

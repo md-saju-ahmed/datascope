@@ -6,6 +6,7 @@ import { AuthRateLimit } from './auth-rate-limit.js';
 import { PasswordService } from './password.service.js';
 import { SessionGuard } from './session.guard.js';
 import { AuthService } from './auth.service.js';
+import { MutationGuard } from './mutation.guard.js';
 
 @Module({
   controllers: [AuthController],
@@ -16,7 +17,8 @@ import { AuthService } from './auth.service.js';
     PasswordService,
     SessionGuard,
     AuthService,
+    MutationGuard,
   ],
-  exports: [SessionGuard, AuthSecurity, AuthRepository],
+  exports: [SessionGuard, AuthSecurity, AuthRepository, MutationGuard],
 })
 export class AuthModule {}

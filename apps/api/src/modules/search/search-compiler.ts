@@ -72,8 +72,16 @@ export function compileSearch(
   query: ValidatedSearch,
   fields: SearchField[],
   visibility: ReturnType<typeof sql>,
+  selectedIds?: string[],
 ) {
   const predicates = [sql`${records.datasetId} = ${datasetId}`, visibility];
+  if (selectedIds)
+    predicates.push(
+      sql`${records.id} in (${sql.join(
+        selectedIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})`,
+    );
   if (query.q)
     predicates.push(
       sql`${records.searchVector} @@ websearch_to_tsquery('simple', ${query.q})`,
@@ -118,7 +126,7 @@ export function compileSearch(
     value,
   ]);
   return {
-    rows: sql`select jsonb_build_object(${sql.join(pairs, sql`, `)}) as record from ${records} where ${where} order by ${order} limit ${query.pageSize} offset ${(query.page - 1) * query.pageSize}`,
+    rows: sql`select jsonb_build_object(${sql.join(pairs, sql`, `)}) as record from ${records} where ${where} order by ${order} limit ${selectedIds?.length ?? query.pageSize} offset ${(query.page - 1) * query.pageSize}`,
     count: sql`select count(*)::text as total from ${records} where ${where}`,
   };
 }

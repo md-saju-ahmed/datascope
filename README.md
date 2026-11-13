@@ -3,10 +3,108 @@
 DataScope is being built as a backend-first platform for authorized discovery of
 large business datasets. The current implementation covers **workspace setup,
 PostgreSQL schema, migrations, deterministic seed, search indexes, authentication,
-dataset permissions/management, record detail/relationships/history and validated
-server-side search** (BE-01–BE-13).
-Saved-view/history-read/analytics APIs and UI features are subsequent work. Backend
+dataset permissions/management, record detail/relationships/history, validated
+search, saved views/sharing, search history, SQL analytics, administration,
+preferences/settings and selected-record CSV export** (BE-01–BE-18).
+Consolidated backend acceptance, load benchmarks and UI features are subsequent work. Backend
 gate G1 has not passed.
+
+## Views, history, analytics, administration and CSV (BE-14–BE-18)
+
+All routes use `/api/v1` and require a valid session. POST/PATCH/DELETE also require
+trusted Origin/Referer, JSON and session-bound `X-CSRF-Token`. Unknown fields are
+rejected. Paginated JSON lists use the existing `data/pageInfo` envelope and bounded
+10/25/50/100 page sizes. Shared browser-safe schemas live in `packages/contracts/src/`.
+
+| Route                                                   | Behavior                                                                                                                |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `GET /saved-views`, `POST /saved-views`                 | List authorized views; create an owned view as Analyst/Admin. Optional list datasetId filter.                           |
+| `GET`, `PATCH`, `DELETE /saved-views/:viewId`           | Authorized read; owner/Admin update/delete. Dataset and owner cannot be reassigned.                                     |
+| `POST /saved-views/:viewId/apply`                       | HTTP 200; re-execute stored state with optional page/pageSize overrides only.                                           |
+| `POST /saved-views/:viewId/shares`                      | Owner/Admin shares with `{ "userId": "uuid" }`; recipient must already have dataset access. Idempotent.                 |
+| `DELETE /saved-views/:viewId/shares/:userId`            | Owner/Admin revokes the share without changing dataset grants.                                                          |
+| `GET`, `DELETE /search-history`                         | Read/clear only current user's actual history. Optional GET datasetId filter.                                           |
+| `GET /datasets/:datasetId/analytics?days=30`            | Admin or Analyst with analyze/manage; real dataset totals, category/status groups, growth, search activity and filters. |
+| `GET /analytics/platform`                               | Admin-only actual dataset/record/user/active-user counts, including archived datasets.                                  |
+| `GET /analytics/search-activity?days=30&datasetId=uuid` | Analyst's own visible activity or Admin dataset/platform activity. Viewer denied.                                       |
+| `GET /users?q=text`, `PATCH /users/:userId`             | Admin list/search and strict role/isActive changes. No password/session material returned.                              |
+| `GET`, `PATCH /preferences/me`                          | Own density, defaultPageSize and defaultDatasetId.                                                                      |
+| `GET`, `PATCH /system/settings`                         | Admin allowlisted settings only; internal seed settings remain private.                                                 |
+| `POST /datasets/:datasetId/exports/selected`            | Admin or Analyst with analyze/manage; bounded authorized CSV attachment.                                                |
+
+Create a view using `{ name, datasetId, config }`; config is `{ version: 1, q,
+conditions, sort, columns, pageSize }` following the search contract. It stores
+configuration, not a snapshot. Creation and updates validate live field metadata
+and advanced-authoring permissions. Apply restores page 1 unless explicitly
+overridden and rechecks metadata, view access and dataset permission in the search
+transaction. Invalid/stale fields fail with 400; hidden/missing resources use safe
+404s. Share revocation, grant revocation, inactive users and archives affect access.
+Share deletion cascades when a view is deleted.
+
+A Viewer may consume an authorized shared advanced view read-only through Apply;
+the endpoint never accepts replacement predicates, columns, sorting or dataset.
+The normal search endpoint continues denying arbitrary Viewer advanced queries.
+Sharing does not create dataset permission. Lists/counts filter ownership/shares
+and dataset visibility in SQL before pagination. Admin can manage views according
+to the declared administrative bypass policy.
+
+Applied view executions use the same bounded/deduplicated history writer as search.
+Their history includes `savedViewId` so later clients can replay through the trusted
+Apply endpoint. History listing hides inaccessible datasets and unavailable view
+origins before pagination/count. Clearing serializes with concurrent recording and
+deletes only the current user's rows, including entries currently hidden by revoked
+access. It accepts an empty JSON body. No history endpoint accepts another user ID.
+
+Analytics use PostgreSQL aggregations over persisted rows/history, with snapshot
+consistency and string counts. The `days` window is 1–366, UTC; growth and activity
+are daily counts in that window. Total records/category/status cover the entire
+dataset. Category/status return the top 50 buckets plus `otherCount`, including a
+null bucket when present, so totals still reconcile. Search activity exposes its
+scope/from/to/total/byDay/filters; filters are the top 50 actually executed filter
+keys. Analyst activity is own-user only; Admin dataset activity includes authorized
+dataset executions. Empty datasets/history return real zeros/empty arrays. Activity
+reflects retained history, including the existing 60-second deduplication policy;
+it is not a permanent all-time search counter. No full-record collection is loaded
+into Node for aggregation. Full-scale API performance testing remains BE-20.
+
+User access updates serialize under a transaction lock and preserve at least one
+active Admin, including concurrent demotions/deactivations. Deactivation revokes
+sessions; reactivation requires fresh login. Role changes are enforced by the next
+request. Preferences merge only supplied fields under a per-user lock; omitted
+fields retain persisted values. defaultDatasetId must be accessible when selected;
+GET returns null if its grant was subsequently revoked. Defaults are comfortable
+density, 25 rows and no selected dataset. Another user's preferences cannot be
+addressed through these endpoints.
+
+System settings currently support only:
+
+- `registration.enabled`: boolean, default true; false blocks actual registration.
+- `exports.max_selected_rows`: integer 1–1000, default 1000; enforced at export time.
+
+Lowercase keys follow the existing database constraint. PATCH preserves omitted
+settings; arbitrary/internal keys are rejected and never enumerated. Registration
+and the registration setting serialize their decisions without changing existing
+credentials. Role, share, settings and export operations emit structured audit
+events with request IDs; operational collection/retention remains deployment work.
+
+Export body: `{ "recordIds": ["1000000000001"], "columns": ["name","revenue"] }`.
+IDs are unique decimal strings, 1–1000 per request (or the lower configured limit).
+The backend requeries every ID in the authorized dataset and validates columns
+against metadata. Any missing/cross-dataset ID fails the whole request with safe
+404; no partial unauthorized selection is returned. Rows use numeric ID order;
+headers/columns follow the request. Revenue/numeric values retain decimal strings,
+dates use UTC and null becomes an empty cell. Every CSV cell is quoted, embedded
+quotes doubled, and rows use CRLF. Leading spreadsheet formula/control prefixes
+receive an apostrophe, including negative-looking strings; consumers should treat
+the result as protected text. No server-generated filenames contain user input.
+Exports use `no-store`; queues/full-filtered exports remain optional and absent.
+
+Focused real PostgreSQL verification:
+`pnpm test:integration -- --testPathPatterns=workflows.integration --verbose`.
+It creates/disposes only a new isolated `datascope_test_seed_*` database and includes
+100000 primary rows. Existing populated dev/test databases are preserved. Full
+regression, independent SQL reconciliation, concurrency, cross-user denials and CSV
+boundary evidence are required before the commit checkpoint; G1 remains separate.
 
 ## Search API (BE-10–BE-13)
 
@@ -583,7 +681,7 @@ Reference: PostgreSQL 17 documents [extension privileges](https://www.postgresql
 
 ## Current limitations
 
-- The schema, migrations, 100k local seed and authorized dataset/record/search APIs exist; saved views, history read/clear, analytics and exports remain pending.
+- Backend domain APIs through BE-18 exist; consolidated backend acceptance, performance benchmarks and OpenAPI consolidation remain BE-19–BE-22.
 - Search vectors/indexes and the validated search compiler/API exist; full load benchmarking remains subsequent work.
 - Backend G1 is unapproved; frontend, integrated deployment and final release remain pending.
 - Full-scale seed verification is separate from search benchmarks, frontend, deployment and release acceptance.

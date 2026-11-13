@@ -109,13 +109,18 @@ export class PermissionsService {
     };
   }
 
-  async ownedOrShared(user: CurrentUser, viewId: string, write = false) {
-    const current = await this.current(user);
-    const view = await this.database.db.query.savedViews.findFirst({
+  async ownedOrShared(
+    user: CurrentUser,
+    viewId: string,
+    write = false,
+    db: DataContext = this.database.db,
+  ) {
+    const current = await this.current(user, db);
+    const view = await db.query.savedViews.findFirst({
       where: sql`${schema.savedViews.id} = ${viewId}`,
     });
     if (!view) notFound();
-    await this.dataset(current, view.datasetId);
+    await this.dataset(current, view.datasetId, 'read', db);
     if (current.role === 'admin') {
       this.audit.record(current.id, 'saved-view.admin.access', viewId);
       return view;
@@ -123,7 +128,7 @@ export class PermissionsService {
     if (write && current.role !== 'analyst') forbidden();
     if (view.ownerId === current.id) return view;
     if (write) notFound();
-    const share = await this.database.db.query.savedViewShares.findFirst({
+    const share = await db.query.savedViewShares.findFirst({
       where: sql`${schema.savedViewShares.viewId} = ${viewId} and ${schema.savedViewShares.userId} = ${current.id}`,
     });
     if (!share) notFound();

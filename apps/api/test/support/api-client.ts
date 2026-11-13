@@ -28,6 +28,7 @@ export class ApiClient {
   async login(email: string, password: string): Promise<void> {
     const bootstrap = await request(this.server)
       .get('/api/v1/auth/csrf')
+      .set('Cookie', this.cookie())
       .set('Origin', 'http://localhost:3000')
       .expect(200);
     this.capture(bootstrap);

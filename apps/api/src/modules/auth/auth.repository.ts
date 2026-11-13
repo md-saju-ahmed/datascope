@@ -17,18 +17,32 @@ export class AuthRepository {
   constructor(private readonly database: DatabaseService) {}
 
   async register(email: string, passwordHash: string): Promise<CurrentUser> {
-    const [user] = await this.database.db
-      .insert(schema.users)
-      .values({ email, passwordHash, role: 'viewer', isActive: true })
-      .onConflictDoNothing()
-      .returning(userProjection);
-    if (!user)
-      throw new AuthFailure(
-        409,
-        'REGISTRATION_CONFLICT',
-        'Unable to register this account',
+    return this.database.db.transaction(async (db) => {
+      await db.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended('datascope.registration',0))`,
       );
-    return user;
+      const setting = await db.query.systemSettings.findFirst({
+        where: sql`${schema.systemSettings.key}='registration.enabled'`,
+      });
+      if (setting && setting.value !== true)
+        throw new AuthFailure(
+          403,
+          'REGISTRATION_DISABLED',
+          'Registration is currently disabled',
+        );
+      const [user] = await db
+        .insert(schema.users)
+        .values({ email, passwordHash, role: 'viewer', isActive: true })
+        .onConflictDoNothing()
+        .returning(userProjection);
+      if (!user)
+        throw new AuthFailure(
+          409,
+          'REGISTRATION_CONFLICT',
+          'Unable to register this account',
+        );
+      return user;
+    });
   }
 
   async credentials(email: string) {

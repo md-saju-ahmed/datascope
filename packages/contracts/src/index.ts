@@ -4,3 +4,8 @@ export * from './auth.js';
 export * from './datasets.js';
 export * from './records.js';
 export * from './search.js';
+export * from './saved-views.js';
+export * from './search-history.js';
+export * from './analytics.js';
+export * from './management.js';
+export * from './exports.js';
