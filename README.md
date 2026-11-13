@@ -6,8 +6,98 @@ PostgreSQL schema, migrations, deterministic seed, search indexes, authenticatio
 dataset permissions/management, record detail/relationships/history, validated
 search, saved views/sharing, search history, SQL analytics, administration,
 preferences/settings and selected-record CSV export** (BE-01–BE-18).
-Consolidated backend acceptance, load benchmarks and UI features are subsequent work. Backend
-gate G1 has not passed.
+Backend acceptance and reproducible benchmark/documentation tooling are available.
+Backend gate G1 requires owner review and approval; frontend work remains locked.
+
+## Backend acceptance, API documentation and benchmarks
+
+Run the complete backend checks from the repository root after the setup below:
+
+```sh
+pnpm build
+pnpm test
+pnpm test:integration -- --verbose
+pnpm lint
+pnpm typecheck
+pnpm format:check
+pnpm smoke:db
+pnpm docs:api
+pnpm benchmark:backend docs/evidence/backend-benchmark
+```
+
+The consolidated OpenAPI 3.1 document and read-only Swagger viewer are generated
+into `technical-docs/api/` by default. The generator checks all 42 operations
+against actual Nest controller decorators and derives structural schemas from
+the current Zod contracts. Open `index.html` to inspect the embedded spec; the
+viewer downloads pinned Swagger UI assets from unpkg and needs internet access.
+The JSON document works with offline OpenAPI tools. These generated artifacts
+remain local under the owner's current private-documentation policy. Generate
+elsewhere with `pnpm docs:api <directory>`. Public artifact publication remains
+a release prerequisite requiring an owner decision; no ignored documents are
+automatically staged or published.
+
+`benchmark:backend` requires the healthy local Compose test service and Docker
+access. It validates the local test URL, creates a unique disposable database,
+installs pg_trgm, applies all migrations and seeds 100000 primary plus 128
+restricted records. It removes only its own database after closing all pools.
+Do not run alongside the integration suite, which tests PostgreSQL restart.
+Existing databases, volumes and environment files are preserved.
+
+The native Node HTTP driver uses a real loopback TCP Nest listener. It retains
+the real session, CSRF, role and dataset guards, statement timeouts and rate
+limits. Eighty temporary Analyst users have legitimate analyze grants and random
+hashed sessions provisioned directly in the disposable database; login is tested
+in acceptance and excluded from timed search. Users rotate to stay within the
+unchanged 60-search/user/minute limit. This models multiple active users, not
+unlimited throughput for one account. No history intent is sent during repeated
+retrieval. No query-result cache is claimed.
+
+Ten workloads cover first-page, categorical, numeric/date, FTS, partial-name,
+four-condition AND, multi-sort, deep offset (90000), repeated exact and analytics.
+Two repetitions at concurrency 1/5/10/20 contain 40 requests per workload/case.
+`benchmark.json` includes individual latencies/statuses, schema/count checks,
+p50/p95/p99, errors, throughput, CPU/RAM/OS/Node/PostgreSQL, index definitions,
+seed evidence and three generated row/count EXPLAIN ANALYZE BUFFERS samples per
+search shape. Initial first-touch measurements are distinct from warm runs:
+database/OS caches are not flushed, so they are **not cold-cache measurements**.
+The driver and server share a host; short runs are local capacity evidence,
+not production guarantees or ten-million-record proof. Errors and target misses
+must be reviewed, never omitted from the report.
+
+For a fresh source replay, run
+`node --env-file=.env scripts/replay-backend.mjs`. It copies only Git-visible
+source into a new temporary directory, verifies SHA256s, installs the frozen
+lockfile, builds, lints, typechecks, runs unit tests, generates OpenAPI and boots
+the compiled API against the inherited local DB configuration. It copies no
+private environment files and records commands/logs/manifest under
+`docs/evidence/be-19-22/replay.json`. The pnpm store can be reused; this is not a
+cold network install. Full PostgreSQL integration acceptance runs separately.
+
+### Backend Docker image
+
+```sh
+docker build -f apps/api/Dockerfile -t datascope-api:local .
+```
+
+The two-stage Node 24 image runs as the unprivileged `node` user. The build context
+excludes `.git`, local environment files, private documents, caches and existing
+build outputs. The image retains canonical SQL migrations for readiness. It
+currently retains build tooling/development dependencies; pruning is a future
+image-size improvement, not a production-minimal claim.
+
+For a local smoke run on the existing Compose network, supply a restricted
+application-role `DATABASE_URL` using the PostgreSQL service name and port 5432
+through a private runtime env file. Set `APP_ORIGIN=https://your-local-origin.test`
+and publish only `127.0.0.1:<chosen-port>:4000`. Check `/api/v1/health/live` and
+`/api/v1/health/ready`, then stop/remove only that smoke container. Never bake
+credentials into the image, run production seeds automatically, or use a host
+loopback DB URL from inside a container. Production deployment is not authorized
+by this build procedure; proxy IP-rate-limit behavior still needs release work.
+
+Search and dataset analytics use the already constrained dataset ID as a bound
+constant in their live SQL permission predicate. This allows PostgreSQL to check
+permission once per statement rather than correlating it to every scanned record;
+the same snapshot, current-user/grant checks and dataset predicate remain enforced.
 
 ## Views, history, analytics, administration and CSV (BE-14–BE-18)
 
@@ -65,7 +155,7 @@ keys. Analyst activity is own-user only; Admin dataset activity includes authori
 dataset executions. Empty datasets/history return real zeros/empty arrays. Activity
 reflects retained history, including the existing 60-second deduplication policy;
 it is not a permanent all-time search counter. No full-record collection is loaded
-into Node for aggregation. Full-scale API performance testing remains BE-20.
+into Node for aggregation. The reproducible backend benchmark includes analytics.
 
 User access updates serialize under a transaction lock and preserve at least one
 active Admin, including concurrent demotions/deactivations. Deactivation revokes
@@ -187,7 +277,7 @@ sort and columns from duplicate detection. An intentional identical repeat insid
 that window is also deduplicated. A per-user transaction lock serializes writers;
 only the latest 100 entries per user remain, across datasets. Failed queries write
 no history. Recording failure fails the request safely; the bounded history write
-is synchronous. History listing/clearing and saved-view execution remain later work.
+is synchronous. History listing/clearing and saved-view execution are implemented.
 
 Search uses the configured database statement timeout and a 10-second overall
 service deadline (including pool acquisition, after route authentication/guards).
@@ -206,8 +296,8 @@ This creates/seeds/disposes only a random `datascope_test_seed_*` verifier datab
 including 100000 primary records. It does not reset populated dev/test databases.
 Real tests reconcile the combined fixture against SQL, verify concurrent count/page
 consistency, history deduplication/retention, denial paths and actual timeout cleanup.
-Generated SQL plan samples support index inspection; full API load benchmarks and
-consolidated Swagger documentation remain BE-20/BE-21, and G1 is still unapproved.
+Generated SQL plans, API load benchmarks and consolidated OpenAPI are available
+through the commands above; G1 still requires explicit owner approval.
 
 ## Dataset and record APIs (BE-07–BE-09)
 
@@ -246,9 +336,8 @@ advanced analysis, manage includes both. Viewer can only read, even with a highe
 grant. A manage grant never enables platform management endpoints for a non-Admin.
 Authorization resolves current active roles/grants from PostgreSQL at request
 time and again in domain services; no user-scoped permission cache is authoritative.
-Shared guards and ownership/share resolvers live in the permissions module for
-subsequent APIs. Owning or sharing a view never grants dataset access; saved-view
-CRUD itself is later work.
+Shared guards and ownership/share resolvers live in the permissions module.
+Owning or sharing a view never grants dataset access; saved-view CRUD is implemented.
 
 Inaccessible and nonexistent dataset/record IDs return the same safe 404 envelope.
 Record IDs are always checked against the route's dataset. Hidden relationships
@@ -671,8 +760,8 @@ JSON)` cases: listing, newest-first, categorical, revenue range, full text,
 trigram partial name, combined AND and deep offset. Output includes SQL, bound
 fixture parameters, PostgreSQL version, count, index definitions and full plans.
 It never disables sequential scans or forces an index. These single-run SQL
-samples are not API p50/p95 or concurrent-load benchmarks; those remain BE-21/G1
-work. PostgreSQL tests separately verify actual selective B-tree and GIN paths
+samples are separate from the API p50/p95/concurrency benchmark above.
+PostgreSQL tests separately verify actual selective B-tree and GIN paths
 over a freshly seeded 100k database.
 
 Reference: PostgreSQL 17 documents [extension privileges](https://www.postgresql.org/docs/17/sql-createextension.html),
@@ -681,8 +770,8 @@ Reference: PostgreSQL 17 documents [extension privileges](https://www.postgresql
 
 ## Current limitations
 
-- Backend domain APIs through BE-18 exist; consolidated backend acceptance, performance benchmarks and OpenAPI consolidation remain BE-19–BE-22.
-- Search vectors/indexes and the validated search compiler/API exist; full load benchmarking remains subsequent work.
+- Backend acceptance, load benchmarks, consolidated OpenAPI and Docker/source replay are verified; owner G1 review remains required.
+- Local 100k tests do not prove production or ten-million-record capacity. Deep offset misses the proposed pagination latency target; genuine cold database caches were not measured.
 - Backend G1 is unapproved; frontend, integrated deployment and final release remain pending.
 - Full-scale seed verification is separate from search benchmarks, frontend, deployment and release acceptance.
 - Required public technical artifacts will be added alongside their verified features.

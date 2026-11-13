@@ -69,7 +69,7 @@ export class AnalyticsService {
     return this.database.db.transaction(
       async (db) => {
         await this.permissions.dataset(user, datasetId, 'analyze', db);
-        const predicate = sql`${schema.datasetRecords.datasetId}=${datasetId} and ${this.permissions.visible(user, schema.datasetRecords.datasetId)}`;
+        const predicate = sql`${schema.datasetRecords.datasetId}=${datasetId} and ${this.permissions.visible(user, sql`${datasetId}::uuid`)}`;
         const total = await db.execute<{ count: string }>(
           sql`select count(*)::text as count from ${schema.datasetRecords} where ${predicate}`,
         );

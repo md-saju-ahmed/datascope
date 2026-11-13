@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.turbo
+.git
+.env
+.env.*
+!.env.example
+docs
+technical-docs
+AGENTS.md
+.codex
+.agents
+**/*.log

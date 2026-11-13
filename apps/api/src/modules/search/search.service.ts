@@ -126,7 +126,9 @@ export class SearchService {
         datasetId,
         query,
         fields,
-        this.permissions.visible(access.user, schema.datasetRecords.datasetId),
+        // compileSearch already constrains every record to this dataset. A bound
+        // dataset constant keeps the live permission check out of the per-row loop.
+        this.permissions.visible(access.user, sql`${datasetId}::uuid`),
       );
       const rows = await db.execute<{
         record: Record<string, string | boolean | null>;
