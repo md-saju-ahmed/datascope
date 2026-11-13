@@ -2,9 +2,76 @@
 
 DataScope is being built as a backend-first platform for authorized discovery of
 large business datasets. The current implementation covers **workspace setup,
-PostgreSQL schema, migrations, deterministic seed, search indexes, authentication and health** (BE-01–BE-06).
-Dataset authorization, search/data APIs and UI features are subsequent work. Backend
+PostgreSQL schema, migrations, deterministic seed, search indexes, authentication,
+dataset permissions/management and record detail/relationships/history** (BE-01–BE-09).
+Search, saved-view/history/analytics APIs and UI features are subsequent work. Backend
 gate G1 has not passed.
+
+## Dataset and record APIs (BE-07–BE-09)
+
+All routes below use the `/api/v1` prefix and require a valid session. Admin writes
+also require the same origin, JSON and CSRF checks as authentication POSTs.
+Shared strict contracts are in `packages/contracts/src/datasets.ts` and `records.ts`.
+
+| Method and route                                     | Behavior                                                                              |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `GET /datasets`                                      | Authorized library, ordered by name then UUID.                                        |
+| `GET /datasets/:datasetId`                           | Authorized metadata/count/effective permission.                                       |
+| `POST /datasets`                                     | Admin creates metadata with zero records.                                             |
+| `PATCH /datasets/:datasetId`                         | Admin updates name/slug/description/category/source.                                  |
+| `DELETE /datasets/:datasetId`                        | Admin archives; no physical record deletion.                                          |
+| `GET /datasets/:datasetId/fields`                    | Authorized, paginated typed field metadata.                                           |
+| `POST /datasets/:datasetId/fields`                   | Admin adds a validated field definition.                                              |
+| `PATCH /datasets/:datasetId/fields/:fieldId`         | Admin validates the merged definition; field ID is dataset-scoped.                    |
+| `GET /datasets/:datasetId/permissions`               | Admin-only paginated grant list.                                                      |
+| `PUT /datasets/:datasetId/permissions/:userId`       | Admin upserts `{ permission: "read" \| "analyze" \| "manage" }` for an active user.   |
+| `DELETE /datasets/:datasetId/permissions/:userId`    | Admin revokes a grant; repeated revocation is safe.                                   |
+| `GET /datasets/:datasetId/records/:recordId`         | Complete authorized record, attributes and UTC timestamps; no internal search vector. |
+| `GET /datasets/:datasetId/records/:recordId/related` | Authorized incoming/outgoing targets, filtered in SQL before pagination/count.        |
+| `GET /datasets/:datasetId/records/:recordId/changes` | Real history, newest first with ID tie-break; empty if unavailable.                   |
+
+List endpoints accept one-based `page` (1–4000) and `pageSize` (10/25/50/100,
+default 25), returning `{ data, pageInfo: { page, pageSize, total, totalPages,
+hasNextPage } }`. Detail/mutation responses wrap one item in `data`. Record IDs,
+dataset record counts and money use strings to retain bigint/decimal precision.
+The dataset library defaults to excluding archives; only Admin may request
+`includeArchived=true`. Admin retains direct access to archived metadata/records;
+all other users lose access to archived datasets and related targets.
+
+Admin bypasses individual dataset grants, with structured audit events. Analyst
+needs a dataset grant: read permits browsing/details, analyze includes read and
+advanced analysis, manage includes both. Viewer can only read, even with a higher
+grant. A manage grant never enables platform management endpoints for a non-Admin.
+Authorization resolves current active roles/grants from PostgreSQL at request
+time and again in domain services; no user-scoped permission cache is authoritative.
+Shared guards and ownership/share resolvers live in the permissions module for
+subsequent APIs. Owning or sharing a view never grants dataset access; saved-view
+CRUD itself is later work.
+
+Inaccessible and nonexistent dataset/record IDs return the same safe 404 envelope.
+Record IDs are always checked against the route's dataset. Hidden relationships
+expose no target/relation IDs, labels, types or hidden counts. Related/history
+requests verify source identity without loading its large attributes. API responses
+use no-store and server-generated request IDs; security audit events carry the
+same request ID, actor, action and resource IDs. Audit is structured server logging,
+not a newly persisted audit table; deployment must configure log collection and
+retention. Neither secrets nor full record/query contents are logged.
+
+Field creation requires `fieldKey`, `label` and `dataType`; defaults disable search,
+filtering and sorting, enable visibility, and set order to zero. A filterable field
+must explicitly declare compatible operators. Common typed keys enforce their
+types; dynamic keys cannot name transport/internal/prototype properties or supply
+SQL. Global search participation is text/enum only. Partial updates preserve other
+properties and validate the whole merged definition. There are at most 100 fields
+per dataset, enforced under a parent-row lock. Metadata mutations can synchronously
+rebuild FTS vectors and hit the configured statement timeout on large datasets;
+they return controlled failures rather than partial success. Search compilation
+and query endpoint delivery remain BE-10 onward.
+
+Focused verification: `pnpm test:integration -- --testPathPatterns=access.integration --verbose`.
+It creates and disposes only its own `datascope_test_access_*` database. Test-only
+guard probe routes are absent from the production application. Run the full
+regression suite before proposing a commit; frontend implementation remains gated.
 
 ## Authentication API (BE-06)
 

@@ -43,9 +43,9 @@ export class AuthExceptionFilter implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<ServerResponse>();
     const request = host.switchToHttp().getRequest<IncomingMessage>();
-    // Preserve existing health/HTTP contracts outside the new authentication surface.
+    // Preserve the existing public readiness failure contract.
     if (
-      !/^\/api\/v1\/auth(?:\/|\?|$)/i.test(request.url ?? '') &&
+      /^\/api\/v1\/health(?:\/|\?|$)/i.test(request.url ?? '') &&
       error instanceof HttpException
     ) {
       response.statusCode = error.getStatus();
