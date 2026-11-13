@@ -2,9 +2,88 @@
 
 DataScope is being built as a backend-first platform for authorized discovery of
 large business datasets. The current implementation covers **workspace setup,
-PostgreSQL schema, migrations, deterministic seed, search indexes and health** (BE-01–BE-05).
-Authentication, search, data APIs and UI features are subsequent work. Backend
+PostgreSQL schema, migrations, deterministic seed, search indexes, authentication and health** (BE-01–BE-06).
+Dataset authorization, search/data APIs and UI features are subsequent work. Backend
 gate G1 has not passed.
+
+## Authentication API (BE-06)
+
+NestJS is the only authentication authority. Routes below are relative to `/api/v1`.
+Shared strict request/response schemas live in `packages/contracts/src/auth.ts`.
+
+| Route                 | Request / result                                                                                                           |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `GET /auth/csrf`      | Returns `{ csrfToken }` and sets an HttpOnly CSRF nonce cookie. No login required.                                         |
+| `POST /auth/register` | JSON `{ email, password }`; 201 `{ data: { id, email, role } }`. Always creates an active Viewer; explicit login follows.  |
+| `POST /auth/login`    | JSON `{ email, password }`; 200 `{ data: { id, email, role }, expiresAt, csrfToken }`; sets a new session and CSRF cookie. |
+| `GET /auth/me`        | Session required; 200 `{ data: { id, email, role } }`. Dataset permissions are added by subsequent backend work.           |
+| `POST /auth/logout`   | Session required, JSON `{}`; 200 `{ data: { loggedOut: true }, csrfToken }`; revokes the session and clears its cookie.    |
+
+Configure `APP_ORIGIN` as the exact trusted browser origin, without a path or trailing
+slash. Local default: `http://localhost:3000`. Production requires an explicitly
+configured HTTPS origin. Existing local environment files need no rewrite for the
+default. For direct local API clients, send the configured origin explicitly;
+do not infer it from a supplied Host or forwarding header. CORS is not enabled.
+
+All auth POSTs require `Content-Type: application/json`, an exact allowed `Origin`
+(or an allowed `Referer` when Origin is absent), the issued cookies, and the token
+in `X-CSRF-Token`. Cross-site Fetch Metadata is rejected. Bootstrap first, keep
+cookies in the client cookie jar, then send the returned token as a header. After
+login/logout, replace it with the token from that response. Never put tokens or
+passwords in URLs, logs, localStorage or public examples. `GET /auth/csrf` can
+refresh the token after a restart or session change; repeated bootstrap with the
+same nonce/session is stable for multiple tabs.
+
+CSRF uses an HMAC-SHA-256 signature over the random nonce and the current opaque
+session's SHA-256 hash (anonymous binding before login). The server key is random
+per API process. Login/logout rotate the nonce and binding. A restart requires
+CSRF bootstrap again while persisted auth sessions remain valid. This deliberately
+supports the initial single API process; multiple instances require a shared
+protected CSRF key or sticky routing and a reviewed limiter deployment policy.
+The design follows the [OWASP session-bound signed CSRF pattern](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
+
+Passwords are not trimmed. Registration requires at least 16 characters and at
+most 128 UTF-8 bytes; login accepts existing nonempty passwords up to that same
+byte bound. Email is trimmed/lowercased. Unknown properties, including role/status,
+are rejected. API password hashes use Argon2id with 19 MiB memory, two iterations
+and parallelism one, matching an [OWASP documented configuration](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+Existing seed Argon2id hashes remain compatible and are not rewritten. Missing
+accounts perform a dummy hash verification; unknown, incorrect and inactive
+credentials receive the same 401 error. This does not claim constant-time HTTP
+responses or an independent security audit.
+
+Sessions use random 256-bit tokens, with only SHA-256 hashes persisted. Their
+**24-hour absolute lifetime** does not slide on `/auth/me`. Login revokes the prior
+browser session, issues a fresh token, and rechecks activity/password state inside
+a transaction. Every authenticated call joins the current active user and checks
+session expiry/revocation, so role/status changes apply immediately. Successful
+logout revokes server-side before clearing the cookie. Separate browser sessions
+remain independent. Cookies are host-only, HttpOnly, SameSite=Lax and Path=/;
+production adds Secure and `__Host-` names. Local HTTP uses `datascope_session`
+and `datascope_csrf`. Production names are `__Host-datascope_session` and
+`__Host-datascope_csrf`. Never use development cookie settings for deployment.
+
+Limits count **all admitted attempts**, including successes and invalid inputs:
+login 10/IP/minute and 5/normalized account/15 minutes; registration 5/IP/hour.
+429 responses include `Retry-After`. Counters reserve synchronously, retain at most
+10,000 windows, expire old entries and fail closed at capacity. These are in-memory
+per-process counters and reset on restart. The socket peer is the IP authority;
+forwarding headers are ignored. Behind NGINX, users therefore share the proxy's IP
+bucket until an explicitly trusted proxy configuration is implemented and tested
+for deployment. No Redis dependency or distributed protection is claimed.
+
+Auth responses use `Cache-Control: no-store`; auth errors contain only
+`{ code, message, details, requestId }`, including malformed/oversized JSON and real
+database failures. Existing health response bodies remain compatible. Request IDs
+are server-generated. No password hashes, raw sessions or SQL errors are returned.
+
+Run the auth unit/HTTP suite through `pnpm test`. Run only its real PostgreSQL API
+suite with `pnpm test:integration -- --testPathPatterns=auth.integration --verbose`;
+the command compiles tests first. The test creates a new random-name
+`datascope_test_auth_*` database, migrates it as the restricted app role, uses real
+password hashing/cookies/SQL, and removes only that new database after closing its
+pools. Existing dev/test records, volumes and environment files are preserved.
+The full regression suite remains `pnpm test:integration -- --verbose`.
 
 ## Prerequisites
 

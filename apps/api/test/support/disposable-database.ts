@@ -36,7 +36,9 @@ export function administerDisposableDatabase(
   extensions = true,
 ): void {
   localMigrationUrl(process.env, true);
-  if (!/^datascope_test_(migration|seed|search)_[a-f0-9]{32}$/.test(database))
+  if (
+    !/^datascope_test_(migration|seed|search|auth)_[a-f0-9]{32}$/.test(database)
+  )
     throw new Error('Unsafe disposable database identifier');
   if (!create) {
     execute('postgres', `DROP DATABASE "${database}"`);
@@ -60,7 +62,9 @@ export function administerDisposableDatabase(
 }
 
 export function installDisposableExtensions(database: string): void {
-  if (!/^datascope_test_(migration|seed|search)_[a-f0-9]{32}$/.test(database))
+  if (
+    !/^datascope_test_(migration|seed|search|auth)_[a-f0-9]{32}$/.test(database)
+  )
     throw new Error('Unsafe disposable extension database identifier');
   execute(
     database,
