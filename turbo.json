@@ -8,7 +8,16 @@
     "test:integration": {
       "dependsOn": ["^build"],
       "cache": false,
-      "passThroughEnv": ["DATABASE_TEST_URL"]
+      "passThroughEnv": [
+        "DATABASE_TEST_URL",
+        "NODE_ENV",
+        "POSTGRES_ADMIN_PASSWORD",
+        "POSTGRES_APP_PASSWORD",
+        "POSTGRES_TEST_ADMIN_PASSWORD",
+        "POSTGRES_TEST_APP_PASSWORD",
+        "POSTGRES_PORT",
+        "POSTGRES_TEST_PORT"
+      ]
     }
   }
 }

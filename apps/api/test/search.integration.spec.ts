@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
@@ -863,13 +862,13 @@ describe('BE-10â€“13 real PostgreSQL search API over 100k records', () => {
     const encoded = JSON.stringify(plans);
     expect(encoded).toContain('dataset_records_search_vector_gin_idx');
     expect(encoded).toContain('dataset_records_name_trgm_gin_idx');
+    const planFile = new URL(
+      '../../../../../docs/evidence/be-10-13/generated-plans.json',
+      import.meta.url,
+    );
+    mkdirSync(new URL('.', planFile), { recursive: true });
     writeFileSync(
-      fileURLToPath(
-        new URL(
-          '../../../../../docs/evidence/be-10-13/generated-plans.json',
-          import.meta.url,
-        ),
-      ),
+      planFile,
       JSON.stringify(
         {
           scope: 'Single SQL samples, no load/p95 claim',

@@ -67,11 +67,16 @@ must be reviewed, never omitted from the report.
 For a fresh source replay, run
 `node --env-file=.env scripts/replay-backend.mjs`. It copies only Git-visible
 source into a new temporary directory, verifies SHA256s, installs the frozen
-lockfile, builds, lints, typechecks, runs unit tests, generates OpenAPI and boots
-the compiled API against the inherited local DB configuration. It copies no
+lockfile and runs the complete `pnpm verify:backend` sequence: build, lint,
+typecheck, formatting, unit/HTTP and real PostgreSQL integration/API tests,
+compiled readiness and OpenAPI generation. It uses the inherited local DB
+configuration and requires Docker access plus healthy local dev/test services.
+The integration suite briefly restarts only the test PostgreSQL service; run
+the replay without concurrent test-service clients or benchmarks. It copies no
 private environment files and records commands/logs/manifest under
 `docs/evidence/be-19-22/replay.json`. The pnpm store can be reused; this is not a
-cold network install. Full PostgreSQL integration acceptance runs separately.
+cold network install. Tests create their own artifact directories; no private
+evidence directory from the working copy is required.
 
 ### Backend Docker image
 

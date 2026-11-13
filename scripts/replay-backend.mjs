@@ -37,12 +37,7 @@ for (const file of files) {
 const results = [];
 for (const command of [
   'pnpm install --frozen-lockfile --fetch-timeout 10000 --network-concurrency 4',
-  'pnpm build',
-  'pnpm lint',
-  'pnpm typecheck',
-  'pnpm test',
-  'pnpm docs:api',
-  'pnpm smoke:db',
+  'pnpm verify:backend',
 ]) {
   const log = join(target, `replay-${results.length}.log`);
   try {
