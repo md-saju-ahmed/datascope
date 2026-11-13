@@ -1,6 +1,5 @@
-import { execFileSync } from 'node:child_process';
+import { administerDisposableDatabase } from './support/disposable-database.js';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
 import {
   createDatabase,
   migrateDatabase,
@@ -11,7 +10,6 @@ import {
 } from '@datascope/db';
 import type { SeedConfiguration, SeedResult } from '@datascope/db';
 
-const root = fileURLToPath(new URL('../../../../../', import.meta.url));
 const name = `datascope_test_seed_${randomUUID().replaceAll('-', '')}`;
 const otherName = `datascope_test_seed_${randomUUID().replaceAll('-', '')}`;
 let config: SeedConfiguration;
@@ -21,33 +19,7 @@ let result: SeedResult;
 const created = new Set<string>();
 
 function administer(database: string, create: boolean) {
-  if (!/^datascope_test_seed_[a-f0-9]{32}$/.test(database))
-    throw new Error('Unsafe disposable DB name');
-  execFileSync(
-    'docker',
-    [
-      'compose',
-      '--project-directory',
-      root,
-      '--profile',
-      'test',
-      'exec',
-      '-T',
-      'postgres_test',
-      'psql',
-      '-U',
-      'datascope_test_admin',
-      '-d',
-      'postgres',
-      '-v',
-      'ON_ERROR_STOP=1',
-      '-c',
-      create
-        ? `CREATE DATABASE "${database}" OWNER datascope_test_app`
-        : `DROP DATABASE "${database}"`,
-    ],
-    { cwd: root, timeout: 30000, windowsHide: true, stdio: 'pipe' },
-  );
+  administerDisposableDatabase(database, create);
   if (create) created.add(database);
   else created.delete(database);
 }

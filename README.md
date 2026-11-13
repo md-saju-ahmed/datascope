@@ -2,7 +2,7 @@
 
 DataScope is being built as a backend-first platform for authorized discovery of
 large business datasets. The current implementation covers **workspace setup,
-PostgreSQL schema, migrations, deterministic seed and health** (BE-01–BE-04).
+PostgreSQL schema, migrations, deterministic seed, search indexes and health** (BE-01–BE-05).
 Authentication, search, data APIs and UI features are subsequent work. Backend
 gate G1 has not passed.
 
@@ -20,6 +20,8 @@ pnpm install --frozen-lockfile
 pnpm env:init
 pnpm db:up
 pnpm db:test:up
+pnpm db:extensions
+pnpm db:extensions:test
 pnpm build
 pnpm db:migrate
 pnpm db:migrate:test
@@ -144,6 +146,8 @@ at the database level.
 pnpm db:generate --name=describe_change
 pnpm db:check
 pnpm build
+pnpm db:extensions
+pnpm db:extensions:test
 pnpm db:migrate
 pnpm db:migrate:test
 ```
@@ -158,8 +162,10 @@ separately approved deployment procedure. API runtime packaging must retain the
 db package's `src/migrations` next to its `dist` directory.
 
 The integration suite additionally creates/removes its own generated-name
-disposable database to test fresh migrations, replay/concurrency, failure
-rollback, schema drift, real constraints and ORM relations. The existing
+disposable databases to test fresh migrations, replay/concurrency, failure
+rollback, schema drift, real constraints and ORM relations. Their administrator
+owns each database and installs `pg_trgm`; app grants mirror the existing local
+databases, including no database-level CREATE privilege. The existing
 development/test databases are not reset. No tests may run concurrently with
 another client restarting the test service.
 
@@ -242,12 +248,92 @@ after the first inserted batch, verifies serial/concurrent replay, preserves
 unrelated rows, and compares complete business-data checksums across two freshly
 migrated databases. It drops only those generated test databases after closing
 their clients. Existing dev/test databases are never reset. Seed timing is not a
-search-performance benchmark; search indexes and measured query plans come later.
+search-performance benchmark; sample SQL plans are captured separately below.
+
+## PostgreSQL search indexes and vector synchronization
+
+`pnpm db:extensions` / `pnpm db:extensions:test` explicitly install `pg_trgm`
+through the designated local Compose administrator. They require development/test
+mode, accept only `--test`, never print credentials and do not change app-role
+grants. PostgreSQL requires database CREATE privilege even for trusted extensions;
+the application intentionally lacks it. Migration `0002_search_indexes.sql`
+checks that `pg_trgm` exists in `public` and fails transactionally if missing.
+Production extension installation and migration remain separately approved work.
+
+The migration backfills existing rows, then makes `search_vector` non-null with
+an empty-vector default and installs these indexes:
+
+| Index suffix (`dataset_records_…`) | Definition / intended query                                                                  |
+| ---------------------------------- | -------------------------------------------------------------------------------------------- |
+| `dataset_id_id_idx`                | B-tree `(dataset_id, id)` for scoped listing and deterministic ties                          |
+| `dataset_created_id_idx`           | B-tree `(dataset_id, created_at DESC NULLS LAST, id DESC NULLS LAST)` for newest-first pages |
+| `dataset_status_country_id_idx`    | B-tree `(dataset_id, status, country, id)` for categorical combinations                      |
+| `dataset_revenue_id_idx`           | B-tree `(dataset_id, revenue, id)` for numeric ranges and ordering                           |
+| `search_vector_gin_idx`            | GIN `(search_vector)` for `@@ websearch_to_tsquery('simple', $query)`                        |
+| `name_trgm_gin_idx`                | GIN `(lower(name) gin_trgm_ops)` for `lower(name) LIKE $lowercasePattern`                    |
+
+The old single-column dataset index is replaced by its composite prefix; the
+primary key remains. No blanket JSONB index or unmeasured custom-field index is
+added. Trigram indexing covers name only; short/broad patterns or other fields
+may legitimately scan. The query planner chooses its own path; index existence
+does not guarantee every query will use it.
+
+Full-text configuration is **`simple`**, which normalizes tokens without English
+stemming. `dataset_fields.is_searchable` selects string/enum fields: `name`,
+`status`, `country` and `category` map to typed columns; other keys read only
+string-valued JSONB properties. Unregistered/disabled fields, numbers, booleans,
+arrays, objects and arbitrary JSONB secrets are excluded. Field sort order then
+key determines token order, including phrase-search behavior across field
+boundaries. All query text/patterns must remain bound values. Global search's API
+validation and empty-query semantics belong to BE-10/BE-11.
+
+Database triggers maintain vectors on insert and relevant record updates,
+including dataset changes and attempted direct vector writes. Metadata
+insert/delete and changes to key/type/scope/searchability/order refresh existing
+records once per affected dataset per statement. Label-only changes need no
+rebuild. Derived-only refreshes preserve business `updated_at`; actual record
+edits still advance it. The vector trigger intentionally sorts after the existing
+timestamp trigger. Seed records, hashes and business timestamps survive backfill.
+
+Metadata changes lock parent dataset rows for update; vector-writing records
+hold parent key-share locks. Volatile SQL functions read the committed metadata
+after a wait under the default READ COMMITTED isolation level. Metadata writes
+can block record writes, and conflicting multi-resource updates may require a
+transaction retry after PostgreSQL deadlock/serialization errors. Keep transactions
+short. Metadata refresh is synchronous and proportional to dataset size; a
+versioned background rebuild would need a future documented design if measured
+workloads outgrow this approach. These triggers synchronize indexes and enforce
+no user-facing authorization policy.
+
+Index builds and backfill are transactional and non-concurrent. They may block
+writers while migrating; they are not an online production migration procedure.
+Business rows are retained and no database reset is part of the migration.
+
+After migrating and seeding, capture reproducible sample plans:
+
+```sh
+pnpm db:explain
+pnpm db:explain --test
+```
+
+The command requires local development/test configuration, current migrations and
+100k primary rows. It runs ANALYZE, then eight `EXPLAIN (ANALYZE, BUFFERS, FORMAT
+JSON)` cases: listing, newest-first, categorical, revenue range, full text,
+trigram partial name, combined AND and deep offset. Output includes SQL, bound
+fixture parameters, PostgreSQL version, count, index definitions and full plans.
+It never disables sequential scans or forces an index. These single-run SQL
+samples are not API p50/p95 or concurrent-load benchmarks; those remain BE-21/G1
+work. PostgreSQL tests separately verify actual selective B-tree and GIN paths
+over a freshly seeded 100k database.
+
+Reference: PostgreSQL 17 documents [extension privileges](https://www.postgresql.org/docs/17/sql-createextension.html),
+[trigger ordering](https://www.postgresql.org/docs/17/trigger-definition.html), and
+[function snapshots](https://www.postgresql.org/docs/17/xfunc-volatility.html).
 
 ## Current limitations
 
 - The schema, migrations and 100k local seed exist; no data API serves these rows yet.
-- Search-vector synchronization and workload indexes remain BE-05; search is not implemented.
+- Search vectors/indexes exist; the validated search compiler and API are subsequent work.
 - No protected business endpoint, authentication or dataset permission is implemented.
 - Full-scale seed verification is separate from search benchmarks, frontend, deployment and release acceptance.
 - Required public technical artifacts will be added alongside their verified features.

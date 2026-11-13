@@ -1,8 +1,7 @@
 import 'reflect-metadata';
-import { execFileSync } from 'node:child_process';
+import { administerDisposableDatabase } from './support/disposable-database.js';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
-import { fileURLToPath } from 'node:url';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
@@ -23,41 +22,11 @@ import {
 import { configureApp } from '../src/configure-app.js';
 import { DatabaseService } from '../src/database/database.service.js';
 
-const root = fileURLToPath(new URL('../../../../../', import.meta.url));
 const freshName = `datascope_test_migration_${randomUUID().replaceAll('-', '')}`;
 let createdFreshDatabase = false;
 
 function administerFreshDatabase(create: boolean): void {
-  // This identifier is generated here, never supplied by the user or environment.
-  if (!/^datascope_test_migration_[a-f0-9]{32}$/.test(freshName)) {
-    throw new Error('Unsafe disposable database identifier');
-  }
-  const statement = create
-    ? `CREATE DATABASE "${freshName}" OWNER datascope_test_app`
-    : `DROP DATABASE "${freshName}"`;
-  execFileSync(
-    'docker',
-    [
-      'compose',
-      '--project-directory',
-      root,
-      '--profile',
-      'test',
-      'exec',
-      '-T',
-      'postgres_test',
-      'psql',
-      '-U',
-      'datascope_test_admin',
-      '-d',
-      'postgres',
-      '-v',
-      'ON_ERROR_STOP=1',
-      '-c',
-      statement,
-    ],
-    { cwd: root, timeout: 30000, windowsHide: true, stdio: 'pipe' },
-  );
+  administerDisposableDatabase(freshName, create);
 }
 
 const oldDate = new Date('2020-01-01T00:00:00.000Z');
@@ -400,24 +369,24 @@ describe('fresh PostgreSQL schema and migrations', () => {
       expect(await getMigrationStatus(database.pool)).toMatchObject({
         ready: false,
         applied: 0,
-        pending: 2,
+        pending: 3,
       });
     } finally {
       await database.pool.query('drop table public.users');
     }
   });
 
-  it('keeps a fresh DB unready until both canonical migrations create all 13 tables', async () => {
+  it('keeps a fresh DB unready until all canonical migrations create all 13 tables', async () => {
     expect(await getMigrationStatus(database.pool)).toMatchObject({
       ready: false,
       applied: 0,
-      pending: 2,
+      pending: 3,
     });
     await request(app.getHttpServer()).get('/api/v1/health/live').expect(200);
     await request(app.getHttpServer()).get('/api/v1/health/ready').expect(503);
     expect(await migrateDatabase(database.pool)).toMatchObject({
       ready: true,
-      applied: 2,
+      applied: 3,
       pending: 0,
     });
     const tables = await database.pool.query<{ name: string }>(
@@ -458,7 +427,7 @@ describe('fresh PostgreSQL schema and migrations', () => {
       migrateDatabase(database.pool),
     ]);
     expect(
-      results.every((result) => result.ready && result.applied === 2),
+      results.every((result) => result.ready && result.applied === 3),
     ).toBe(true);
     const after = await database.db.query.users.findFirst({
       where: (table, { eq }) => eq(table.id, id),

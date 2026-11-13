@@ -36,11 +36,37 @@ export const datasetRecords = pgTable(
       .$type<Record<string, unknown>>()
       .default({})
       .notNull(),
-    searchVector: tsvector('search_vector'),
+    searchVector: tsvector('search_vector')
+      .default(sql`''::tsvector`)
+      .notNull(),
     ...timestamps(),
   },
   (table) => [
-    index('dataset_records_dataset_id_idx').on(table.datasetId),
+    index('dataset_records_dataset_id_id_idx').on(table.datasetId, table.id),
+    index('dataset_records_dataset_created_id_idx').on(
+      table.datasetId,
+      table.createdAt.desc(),
+      table.id.desc(),
+    ),
+    index('dataset_records_dataset_status_country_id_idx').on(
+      table.datasetId,
+      table.status,
+      table.country,
+      table.id,
+    ),
+    index('dataset_records_dataset_revenue_id_idx').on(
+      table.datasetId,
+      table.revenue,
+      table.id,
+    ),
+    index('dataset_records_search_vector_gin_idx').using(
+      'gin',
+      table.searchVector,
+    ),
+    index('dataset_records_name_trgm_gin_idx').using(
+      'gin',
+      sql`lower(${table.name}) public.gin_trgm_ops`,
+    ),
     check(
       'dataset_records_attributes_object',
       sql`jsonb_typeof(${table.attributes}) = 'object'`,
