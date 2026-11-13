@@ -12,6 +12,8 @@ dist/
 .turbo/
 coverage/
 *.tsbuildinfo
+playwright-report/
+test-results/
 
 # Logs
 *.log

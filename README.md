@@ -7,7 +7,8 @@ dataset permissions/management, record detail/relationships/history, validated
 search, saved views/sharing, search history, SQL analytics, administration,
 preferences/settings and selected-record CSV export** (BE-01–BE-18).
 Backend acceptance and reproducible benchmark/documentation tooling are available.
-Backend gate G1 requires owner review and approval; frontend work remains locked.
+Backend gate G1 was owner approved against `f64574bd3accc73652c9b97855d350b1a008dfba`.
+FE-01 provides the frontend foundation described below. G2/G3 remain unapproved.
 
 ## Backend acceptance, API documentation and benchmarks
 
@@ -302,7 +303,7 @@ including 100000 primary records. It does not reset populated dev/test databases
 Real tests reconcile the combined fixture against SQL, verify concurrent count/page
 consistency, history deduplication/retention, denial paths and actual timeout cleanup.
 Generated SQL plans, API load benchmarks and consolidated OpenAPI are available
-through the commands above; G1 still requires explicit owner approval.
+through the commands above; G1 owner approval is recorded for the backend snapshot.
 
 ## Dataset and record APIs (BE-07–BE-09)
 
@@ -777,6 +778,16 @@ Reference: PostgreSQL 17 documents [extension privileges](https://www.postgresql
 
 - Backend acceptance, load benchmarks, consolidated OpenAPI and Docker/source replay are verified; owner G1 review remains required.
 - Local 100k tests do not prove production or ten-million-record capacity. Deep offset misses the proposed pagination latency target; genuine cold database caches were not measured.
-- Backend G1 is unapproved; frontend, integrated deployment and final release remain pending.
+- Backend G1 is owner approved; frontend feature verification (G2), integrated deployment and final release remain pending.
 - Full-scale seed verification is separate from search benchmarks, frontend, deployment and release acceptance.
 - Required public technical artifacts will be added alongside their verified features.
+
+## Frontend foundation (FE-01)
+
+`apps/web` uses Next.js App Router, React, TypeScript, Tailwind CSS and locally owned shadcn/ui Button/Sheet/Skeleton primitives (Radix dialog for modal focus management). Run `pnpm dev:api` and `pnpm dev:web` in separate terminals; open `http://localhost:3000`. Public entry/login/registration screens are foundation boundaries; complete authentication flows are FE-04. Application destinations explicitly identify pending workflows. Redux slices, RTK Query, Explorer and business pages remain separate later tasks.
+
+The protected server layout and route pages validate `/api/v1/auth/me` using the frozen shared response schema, a five-second timeout and `cache: 'no-store'`. Only the session cookie is forwarded to the configured Nest origin. React render-scoped memoization avoids duplicate validation within a request. Navigation uses full document requests so session/role changes are checked on every navigation. Admin layout and pages both check the current backend role. Nest remains the authority for all resource permissions. No database package is imported by the web application; the separate browser-test process uses the existing disposable PostgreSQL fixture helpers.
+
+Server-only environment: `API_INTERNAL_ORIGIN` defaults to `http://127.0.0.1:4000`; `API_SESSION_COOKIE_NAME` defaults to the Nest production `__Host-datascope_session` in production and `datascope_session` in development. To run `next start` against a **local development** Nest server, explicitly set `API_SESSION_COOKIE_NAME=datascope_session`. Production requires the secure cookie and HTTPS. Next does not automatically load the repository-root `.env`; export the web settings in its process environment when overriding defaults. Never use `NEXT_PUBLIC_` for these settings. No frontend session token is stored in browser JavaScript storage.
+
+Validation: `pnpm build`, `pnpm lint`, `pnpm typecheck`, `pnpm format:check`. After building, `pnpm test:web` compiles/runs the existing API unit suite, creates and migrates a new regex-validated disposable test database, starts real Nest and production Next servers on loopback ports 4100/3100 (3101 exercises an unavailable backend on 4101), runs Chromium route/access/responsive checks, then stops its processes and removes only its own disposable database. Docker test PostgreSQL and root `.env` configuration are required. Install the matching browser once with `pnpm --filter @datascope/web exec playwright install chromium`. Tests never reset populated dev/test databases. Browser checks cover foundation behavior only and do not constitute G2 approval.

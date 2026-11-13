@@ -10,6 +10,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev:api": "pnpm --filter @datascope/api dev",
+    "dev:web": "pnpm --filter @datascope/web dev",
+    "test:web": "pnpm --filter @datascope/api test && pnpm --filter @datascope/web test:e2e",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

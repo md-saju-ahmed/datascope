@@ -8,6 +8,10 @@ export default tseslint.config(
       '**/node_modules/**',
       '**/.turbo/**',
       '**/coverage/**',
+      '**/.next/**',
+      '**/next-env.d.ts',
+      '**/playwright-report/**',
+      '**/test-results/**',
     ],
   },
   js.configs.recommended,
@@ -21,11 +25,12 @@ export default tseslint.config(
         URL: 'readonly',
         fetch: 'readonly',
         AbortSignal: 'readonly',
+        setTimeout: 'readonly',
       },
     },
   },
   {
-    files: ['**/*.ts'],
+    files: ['**/*.{ts,tsx}'],
     extends: [...tseslint.configs.strictTypeChecked],
     languageOptions: {
       parserOptions: {
