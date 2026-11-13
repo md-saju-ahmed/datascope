@@ -24,7 +24,10 @@
     "db:generate": "pnpm --filter @datascope/db db:generate",
     "db:check": "pnpm --filter @datascope/db db:check",
     "db:migrate": "pnpm --filter @datascope/db db:migrate",
-    "db:migrate:test": "pnpm --filter @datascope/db db:migrate:test"
+    "db:migrate:test": "pnpm --filter @datascope/db db:migrate:test",
+    "seed:env:init": "node scripts/init-seed-env.mjs",
+    "db:seed": "pnpm --filter @datascope/db db:seed",
+    "db:seed:test": "pnpm --filter @datascope/db db:seed:test"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

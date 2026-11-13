@@ -2,8 +2,9 @@
 
 DataScope is being built as a backend-first platform for authorized discovery of
 large business datasets. The current implementation covers **workspace setup,
-PostgreSQL schema, migrations and health** (BE-01–BE-03). Authentication, seed,
-search, data APIs and UI features are subsequent work. Backend gate G1 has not passed.
+PostgreSQL schema, migrations, deterministic seed and health** (BE-01–BE-04).
+Authentication, search, data APIs and UI features are subsequent work. Backend
+gate G1 has not passed.
 
 ## Prerequisites
 
@@ -132,8 +133,11 @@ credentials or delete a populated volume as a troubleshooting shortcut.
 
 The schema is declared under `packages/db/src/schema/`; the only canonical SQL
 migration directory is `packages/db/src/migrations/`, including its journal and
-snapshots. [Schema and deletion decisions](technical-docs/database-schema.md)
-describe the model, integrity rules, decimal/bigint handling and migration runner.
+snapshots. Record IDs use bigint and revenue uses numeric(18,2); serialize IDs and
+decimal amounts as strings at API boundaries. Foreign keys retain record history
+and prevent deleting a dataset containing records. Migrations and readiness run
+with the existing restricted application role, without granting schema creation
+at the database level.
 
 ```sh
 # Only when intentionally changing the schema:
@@ -159,10 +163,91 @@ rollback, schema drift, real constraints and ORM relations. The existing
 development/test databases are not reset. No tests may run concurrently with
 another client restarting the test service.
 
+## Deterministic local seed
+
+After migrations, explicitly create the **local-only** account configuration and
+seed development:
+
+```sh
+pnpm seed:env:init
+pnpm build
+pnpm db:seed
+# Optional: seed the separate local test database explicitly.
+pnpm db:seed:test
+```
+
+`seed:env:init` creates ignored `.env.seed.local` with three distinct random
+passwords and admin/analyst/viewer email addresses. It refuses to overwrite an
+existing file and never prints the credentials. Read or customize that file
+locally; do not commit it, copy it into production or publish its contents.
+The seed CLI loads `.env` followed by `.env.seed.local`; explicit process
+environment variables take precedence. It requires `NODE_ENV=development|test`,
+`SEED_ALLOW_LOCAL=true`, three distinct emails and distinct passwords of at least
+16 characters and at most 128 UTF-8 bytes. It rejects production mode, external
+hosts, other database names, admin database roles and URL connection options.
+Test mode requires `DATABASE_TEST_URL` and never falls back to development.
+Seed commands are never run on API startup or automatically in production.
+
+The primary `business-directory-v1` dataset has **100,000 persisted rows**;
+`restricted-partners-v1` has 128. Both have searchable/filterable/sortable field
+metadata, including numeric, enum, date and JSONB boolean fields. Two genuine
+record relationships include a cross-dataset target. No change-history events
+are fabricated: these newly inserted records have no change history.
+
+The business generator uses fixed seed `0xdecafbad` and reference date
+`2026-11-01T00:00:00.000Z`, with dates distributed over the preceding 1,400 days.
+Results do not depend on today's date. Primary IDs run from `1000000000001` to
+`1000000100000`; restricted IDs follow through `1000000100128`. Explicit IDs
+leave PostgreSQL's normal identity sequence usable for subsequent records.
+Metadata UUIDs and Argon2id password salts are randomized; business rows and
+fixture identifiers are reproducible. Passwords are stored only as Argon2id hashes.
+
+The first ten primary records are deliberate boundary/null/blank fixtures. This
+SQL isolates their four-condition AND case and must return IDs
+`1000000000001`, `1000000000007`, `1000000000008`:
+
+```sql
+SELECT id FROM dataset_records
+WHERE dataset_id = 'dada0004-0000-4000-8000-000000000101'
+  AND attributes->>'fixture' = 'true'
+  AND status = 'Active' AND country = 'Germany'
+  AND revenue > 10000 AND created_at >= TIMESTAMPTZ '2026-01-01T00:00:00Z'
+ORDER BY id;
+
+SELECT d.slug, count(r.id), d.record_count
+FROM datasets d LEFT JOIN dataset_records r ON r.dataset_id = d.id
+WHERE d.source = 'datascope-seed-v1'
+GROUP BY d.id ORDER BY d.slug;
+```
+
+Seeded grants: the Viewer can read Business Directory; the Analyst has analyze
+grants on both datasets. The Admin has the platform role for the later admin
+authorization policy. The Viewer has no grant on Restricted Partners. These are
+persisted fixtures; authenticated API enforcement is subsequent BE-06/BE-07 work.
+
+Inserts use parameterized JSON batches of at most 1,000 rows, converted by
+PostgreSQL's `jsonb_to_recordset` inside one Drizzle transaction, serialized by an
+advisory lock. Any failed batch rolls back accounts, metadata, grants and records.
+Rerun `pnpm db:seed` to verify/reuse the existing seed: it returns `applied:false`
+without updating data, hashes or timestamps. A versioned settings marker guards
+replay. Conflicting IDs/emails, changed bootstrap identities/passwords or drift
+in counts/known fixtures cause refusal rather than reset, role escalation or
+automatic repair. The JSON result includes SQL counts, matching fixture IDs and
+a checksum of persisted business data; it contains no account credentials.
+Use the existing configured credentials for a rerun. Regenerating credentials
+does not rotate existing database accounts.
+
+`pnpm test:integration` creates its own disposable databases, exercises a failure
+after the first inserted batch, verifies serial/concurrent replay, preserves
+unrelated rows, and compares complete business-data checksums across two freshly
+migrated databases. It drops only those generated test databases after closing
+their clients. Existing dev/test databases are never reset. Seed timing is not a
+search-performance benchmark; search indexes and measured query plans come later.
+
 ## Current limitations
 
-- The 13-table schema and migrations exist; the 100k deterministic seed starts at BE-04.
+- The schema, migrations and 100k local seed exist; no data API serves these rows yet.
 - Search-vector synchronization and workload indexes remain BE-05; search is not implemented.
 - No protected business endpoint, authentication or dataset permission is implemented.
-- No large-dataset test, benchmark, frontend, deployment or release acceptance is claimed.
+- Full-scale seed verification is separate from search benchmarks, frontend, deployment and release acceptance.
 - Required public technical artifacts will be added alongside their verified features.

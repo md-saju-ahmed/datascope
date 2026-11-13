@@ -21,11 +21,14 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:check": "drizzle-kit check --config drizzle.config.ts",
     "db:migrate": "node --env-file-if-exists=../../.env dist/migrate-cli.js",
-    "db:migrate:test": "node --env-file-if-exists=../../.env dist/migrate-cli.js --test"
+    "db:migrate:test": "node --env-file-if-exists=../../.env dist/migrate-cli.js --test",
+    "db:seed": "node --env-file-if-exists=../../.env --env-file=../../.env.seed.local dist/seed/cli.js",
+    "db:seed:test": "node --env-file-if-exists=../../.env --env-file=../../.env.seed.local dist/seed/cli.js --test"
   },
   "dependencies": {
-    "pg": "8.23.1",
-    "drizzle-orm": "0.45.4"
+    "argon2": "0.45.1",
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1"
   },
   "devDependencies": {
     "@types/pg": "8.23.1",
