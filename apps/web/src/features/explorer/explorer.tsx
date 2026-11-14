@@ -208,6 +208,7 @@ function ExplorerQuery({
             change={change}
             savedData={data}
             viewId={viewId}
+            exportAllowed={advanced}
           />
         )}
       </SavedViewExplorer>
@@ -247,6 +248,7 @@ function ExplorerQuery({
         fields={fields}
         query={parsed.query}
         change={change}
+        exportAllowed={advanced}
       />
     </div>
   );
@@ -258,6 +260,7 @@ function ExplorerResults({
   change,
   savedData,
   viewId,
+  exportAllowed,
 }: {
   datasetId: string;
   fields: DatasetField[];
@@ -265,6 +268,7 @@ function ExplorerResults({
   change: (query: SearchRequest) => void;
   savedData?: SearchResponse;
   viewId?: string;
+  exportAllowed: boolean;
 }) {
   const result = useSearchRecordsQuery(
     { datasetId, query },
@@ -475,6 +479,8 @@ function ExplorerResults({
           change={change}
           openRecord={setRecord}
           readOnly={!!viewId}
+          datasetId={datasetId}
+          exportAllowed={exportAllowed}
         />
       )}
       {data && (

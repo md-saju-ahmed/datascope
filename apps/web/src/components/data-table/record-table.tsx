@@ -15,6 +15,7 @@ import type {
 import { displayValue } from '@/features/datasets/data-state';
 import { Button } from '@/components/ui/button';
 import { useAppSelector } from '@/store/hooks';
+import { ExportSelection } from '@/features/explorer/export-selection';
 
 type Row = SearchResponse['data'][number];
 function Highlight({ value, term }: { value: unknown; term: string }) {
@@ -37,6 +38,8 @@ export function RecordTable({
   change,
   openRecord,
   readOnly = false,
+  datasetId,
+  exportAllowed,
 }: {
   data: Row[];
   fields: DatasetField[];
@@ -44,6 +47,8 @@ export function RecordTable({
   change: (query: SearchRequest) => void;
   openRecord: (id: string) => void;
   readOnly?: boolean;
+  datasetId: string;
+  exportAllowed: boolean;
 }) {
   const density = useAppSelector((s) => s.uiPreferences.density);
   const [selection, setSelection] = useState<RowSelectionState>({});
@@ -161,7 +166,7 @@ export function RecordTable({
   });
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex flex-wrap items-start gap-3 text-sm">
         <span role="status">
           {Object.keys(selection).filter((id) => selection[id]).length} selected
           on this page
@@ -175,6 +180,22 @@ export function RecordTable({
         >
           Clear selection
         </Button>
+        {exportAllowed && (
+          <ExportSelection
+            datasetId={datasetId}
+            recordIds={data
+              .filter((row) => selection[row.id])
+              .map((row) => row.id)}
+            columns={
+              query.columns ?? [
+                'id',
+                ...fields
+                  .filter((field) => field.isVisible)
+                  .map((field) => field.fieldKey),
+              ]
+            }
+          />
+        )}
       </div>
       <div
         role="region"

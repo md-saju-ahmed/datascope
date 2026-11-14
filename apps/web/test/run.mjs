@@ -269,7 +269,7 @@ try {
     [
       'test',
       '--grep-invert',
-      'FE05/06|FE07|FE08|FE09|FE10|FE11',
+      'FE05/06|FE07|FE08|FE09|FE10|FE11|FE12',
       '--output',
       'test-results/regressions',
     ],
@@ -304,7 +304,8 @@ try {
     explorerTests.once('exit', (code) => resolve(code ?? 1)),
   );
   let featureCode = 0;
-  for (const phase of ['FE07', 'FE08', 'FE09', 'FE10', 'FE11']) {
+  const exportDataset = randomUUID();
+  for (const phase of ['FE07', 'FE08', 'FE09', 'FE10', 'FE11', 'FE12']) {
     if (phase === 'FE08') await addDetailFixtures();
     let analyticsEmpty, analyticsGroups;
     if (phase === 'FE10') {
@@ -341,6 +342,39 @@ try {
         [roleIds.admin],
       );
     }
+    if (phase === 'FE12') {
+      await fixture.db.insert(schema.datasets).values({
+        id: exportDataset,
+        slug: 'fe12-csv',
+        name: 'CSV verification fixture',
+        description: 'Disposable CSV verification records',
+        category: 'verification',
+        source: 'test',
+      });
+      await fixture.db.insert(schema.datasetPermissions).values({
+        datasetId: exportDataset,
+        userId: roleIds.analyst,
+        permission: 'analyze',
+      });
+      await fixture.pool.query(
+        `insert into dataset_fields(dataset_id,field_key,label,data_type,operators,is_searchable,is_filterable,is_sortable,is_visible,sort_order)
+        select $1,field_key,label,data_type,operators,is_searchable,is_filterable,is_sortable,is_visible,sort_order from dataset_fields where dataset_id=$2 and field_key in ('name','revenue')`,
+        [exportDataset, seedIds.primary],
+      );
+      for (const name of [
+        '=SUM(1,2)',
+        'Comma, "quote"\nবাংলা',
+        'Unselected record',
+      ])
+        await fixture.pool.query(
+          'insert into dataset_records(dataset_id,name,revenue) values($1,$2,$3)',
+          [exportDataset, name, '9999999999999999.99'],
+        );
+      await fixture.pool.query(
+        'update datasets set record_count=(select count(*) from dataset_records where dataset_id=$1) where id=$1',
+        [exportDataset],
+      );
+    }
     await stop(api);
     api = start('apps/api/dist/main.js', [], root, {
       NODE_ENV: 'test',
@@ -360,6 +394,7 @@ try {
         FE07_VIEWER: roleIds.viewer,
         FE07_ANALYST: roleIds.analyst,
         FE07_EMPTY: emptyId,
+        FE12_DATASET: exportDataset,
         ...(phase === 'FE10'
           ? {
               FE10_DATABASE_URL: url.toString(),
