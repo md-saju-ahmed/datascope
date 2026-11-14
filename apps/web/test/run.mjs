@@ -269,7 +269,7 @@ try {
     [
       'test',
       '--grep-invert',
-      'FE05/06|FE07|FE08|FE09',
+      'FE05/06|FE07|FE08|FE09|FE10',
       '--output',
       'test-results/regressions',
     ],
@@ -304,8 +304,36 @@ try {
     explorerTests.once('exit', (code) => resolve(code ?? 1)),
   );
   let featureCode = 0;
-  for (const phase of ['FE07', 'FE08', 'FE09']) {
+  for (const phase of ['FE07', 'FE08', 'FE09', 'FE10']) {
     if (phase === 'FE08') await addDetailFixtures();
+    let analyticsEmpty, analyticsGroups;
+    if (phase === 'FE10') {
+      analyticsEmpty = randomUUID();
+      analyticsGroups = randomUUID();
+      for (const [id, slug, name] of [
+        [analyticsEmpty, 'fe10-empty', 'Analytics empty fixture'],
+        [analyticsGroups, 'fe10-groups', 'Analytics grouped fixture'],
+      ]) {
+        await fixture.db.insert(schema.datasets).values({
+          id,
+          slug,
+          name,
+          description: 'Disposable FE-10 verification fixture',
+          category: 'verification',
+          source: 'test',
+        });
+        await fixture.db.insert(schema.datasetPermissions).values({
+          datasetId: id,
+          userId: roleIds.analyst,
+          permission: 'analyze',
+        });
+      }
+      await fixture.pool.query(
+        `insert into dataset_records(dataset_id,name,status,category,created_at)
+        select $1,'Analytics group '||n,case when n<=2 then null else 'Status '||n end,case when n<=2 then null else 'Category '||n end,now()-interval '1 day' from generate_series(1,57) n`,
+        [analyticsGroups],
+      );
+    }
     await stop(api);
     api = start('apps/api/dist/main.js', [], root, {
       NODE_ENV: 'test',
@@ -325,6 +353,13 @@ try {
         FE07_VIEWER: roleIds.viewer,
         FE07_ANALYST: roleIds.analyst,
         FE07_EMPTY: emptyId,
+        ...(phase === 'FE10'
+          ? {
+              FE10_DATABASE_URL: url.toString(),
+              FE10_EMPTY_DATASET: analyticsEmpty,
+              FE10_GROUPS_DATASET: analyticsGroups,
+            }
+          : {}),
       },
     );
     const code = await new Promise((resolve) =>
