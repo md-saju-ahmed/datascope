@@ -1,3 +1,5 @@
 import { createAction } from '@reduxjs/toolkit';
-// FE-03 will also reset its user-scoped API cache on this event.
 export const clientStateCleared = createAction('client/stateCleared');
+export const protectedAccessLost = createAction('client/protectedAccessLost');
+export const sessionExpired = createAction('client/sessionExpired');
+export const savedViewRemoved = createAction<string>('client/savedViewRemoved');

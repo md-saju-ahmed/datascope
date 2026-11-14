@@ -55,6 +55,7 @@ describe('FE-02 client state ownership and lifecycle', () => {
   test('fresh stores have all five slices and no established client identity by default', () => {
     const store = makeStore();
     expect(Object.keys(store.getState()).sort()).toEqual([
+      'api',
       'auth',
       'dataset',
       'savedViews',

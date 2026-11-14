@@ -8,6 +8,9 @@ import {
   migrateDatabase,
   localMigrationUrl,
   schema,
+  seedConfiguration,
+  seedDatabase,
+  seedIds,
 } from '../../../packages/db/dist/index.js';
 import { administerDisposableDatabase } from '../../api/dist/test/test/support/disposable-database.js';
 const apiRequire = createRequire(
@@ -16,7 +19,7 @@ const apiRequire = createRequire(
 const { hash, argon2id } = apiRequire('argon2');
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const web = fileURLToPath(new URL('../', import.meta.url));
-const database = `datascope_test_auth_${randomUUID().replaceAll('-', '')}`;
+const database = `datascope_test_seed_${randomUUID().replaceAll('-', '')}`;
 const url = new URL(localMigrationUrl(process.env, true));
 url.pathname = `/${database}`;
 const password = randomBytes(24).toString('hex');
@@ -52,10 +55,25 @@ try {
   fixture = createDatabase({
     connectionString: url.toString(),
     max: 2,
-    statementTimeoutMillis: 5000,
+    statementTimeoutMillis: 60000,
     connectionTimeoutMillis: 1000,
   });
   await migrateDatabase(fixture.pool);
+  const seed = seedConfiguration(
+    {
+      ...process.env,
+      NODE_ENV: 'test',
+      SEED_ALLOW_LOCAL: 'true',
+      ...Object.fromEntries(
+        ['admin', 'analyst', 'viewer'].flatMap((role) => [
+          [`SEED_${role.toUpperCase()}_EMAIL`, `${role}@fe03.test`],
+          [`SEED_${role.toUpperCase()}_PASSWORD`, `${password}-${role}`],
+        ]),
+      ),
+    },
+    true,
+  );
+  await seedDatabase(fixture.pool, seed);
   const passwordHash = await hash(password, {
     type: argon2id,
     memoryCost: 19456,
@@ -104,13 +122,31 @@ try {
     },
   );
   await ready('http://localhost:3101');
+  const runtime = start(
+    'node_modules/jest/bin/jest.js',
+    ['--config', 'jest.runtime.config.cjs', '--runInBand'],
+    web,
+    {
+      NODE_OPTIONS: '--experimental-vm-modules',
+      FE03_PASSWORD: password,
+      FE03_PRIMARY: seedIds.primary,
+      FE03_RESTRICTED: seedIds.restricted,
+      FE03_ADMIN: seedIds.admin,
+      FE03_ANALYST: seedIds.analyst,
+      FE03_VIEWER: seedIds.viewer,
+    },
+  );
+  const runtimeCode = await new Promise((resolve) =>
+    runtime.once('exit', (code) => resolve(code ?? 1)),
+  );
   const tests = start('node_modules/@playwright/test/cli.js', ['test'], web, {
     FE01_PASSWORD: password,
     FE01_EXPIRED: expired,
   });
-  process.exitCode = await new Promise((resolve) =>
+  const browserCode = await new Promise((resolve) =>
     tests.once('exit', (code) => resolve(code ?? 1)),
   );
+  process.exitCode = runtimeCode || browserCode;
 } finally {
   for (const child of children.reverse())
     if (child.exitCode === null) {

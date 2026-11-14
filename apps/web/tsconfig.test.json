@@ -8,6 +8,10 @@
     "declaration": false,
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["src/store/**/*.ts", "test/store.unit.spec.ts"],
+  "include": [
+    "src/store/**/*.ts",
+    "test/*.unit.spec.ts",
+    "test/api.runtime.spec.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

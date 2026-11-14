@@ -9,7 +9,7 @@
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
-    "test:e2e": "node --env-file-if-exists=../../.env test/run.mjs"
+    "test:e2e": "tsc -p tsconfig.test.json && node --env-file-if-exists=../../.env test/run.mjs"
   },
   "dependencies": {
     "@datascope/contracts": "workspace:*",
