@@ -7,18 +7,23 @@ import type {
   SearchRequest,
   SearchResponse,
 } from '@datascope/contracts';
+import { uuidParamSchema } from '@datascope/contracts';
 import {
   useGetDatasetQuery,
   useGetFieldsQuery,
 } from '@/store/api/datasets-api';
 import { useSearchRecordsQuery } from '@/store/api/search-api';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { datasetSlice } from '@/store/slices/dataset-slice';
 import { DataLoading, DataFailure } from '@/features/datasets/data-state';
 import { Button } from '@/components/ui/button';
 import { RecordTable } from '@/components/data-table/record-table';
 import { readExplorerQuery, writeExplorerQuery } from './url-state';
 import { RecordPeek } from './record-peek';
+import { SearchControls } from './search-controls';
+import { advancedQuery, canAuthorAdvanced } from './query-validation';
+import { SaveView } from '@/features/saved-views/save-view';
+import { SavedViewExplorer } from '@/features/saved-views/saved-view-explorer';
 
 export function Explorer({
   datasetId,
@@ -75,7 +80,11 @@ export function Explorer({
         </div>
       </header>
       {fields.currentData ? (
-        <ExplorerQuery datasetId={datasetId} fields={fields.currentData.data} />
+        <ExplorerQuery
+          datasetId={datasetId}
+          fields={fields.currentData.data}
+          dataset={metadata}
+        />
       ) : (
         <DataLoading />
       )}
@@ -85,11 +94,16 @@ export function Explorer({
 function ExplorerQuery({
   datasetId,
   fields,
+  dataset,
 }: {
   datasetId: string;
   fields: DatasetField[];
+  dataset: Dataset;
 }) {
+  const user = useAppSelector((s) => s.auth.user);
+  const advanced = canAuthorAdvanced(user, dataset);
   const params = useSearchParams();
+  const viewId = params.get('view');
   const parsed = useMemo(() => {
     try {
       return { query: readExplorerQuery(params.toString(), fields) };
@@ -97,10 +111,22 @@ function ExplorerQuery({
       return { query: null };
     }
   }, [params, fields]);
-  const change = useCallback((query: SearchRequest) => {
-    window.history.pushState(null, '', `?${writeExplorerQuery(query)}`);
-  }, []);
-  if (!parsed.query)
+  const change = useCallback(
+    (query: SearchRequest) => {
+      window.history.pushState(
+        null,
+        '',
+        `?${writeExplorerQuery(query)}${viewId ? `&view=${viewId}` : ''}`,
+      );
+    },
+    [viewId],
+  );
+  if (
+    !parsed.query ||
+    (viewId !== null &&
+      (!uuidParamSchema.safeParse(viewId).success ||
+        params.getAll('view').length !== 1))
+  )
     return (
       <section
         role="alert"
@@ -119,13 +145,65 @@ function ExplorerQuery({
         </Button>
       </section>
     );
+  const query = parsed.query;
+  if (viewId)
+    return (
+      <SavedViewExplorer
+        viewId={viewId}
+        datasetId={datasetId}
+        fields={fields}
+        query={query}
+        change={change}
+      >
+        {(data) => (
+          <ExplorerResults
+            datasetId={datasetId}
+            fields={fields}
+            query={query}
+            change={change}
+            savedData={data}
+            viewId={viewId}
+          />
+        )}
+      </SavedViewExplorer>
+    );
+  if (!advanced && advancedQuery(query))
+    return (
+      <section role="alert" className="space-y-3">
+        <h2 className="font-semibold">Advanced search unavailable</h2>
+        <p>
+          This query requires advanced authoring access. Open an authorized
+          saved view to run a shared advanced query.
+        </p>
+        <Button
+          onClick={() => {
+            change({ ...query, conditions: [], page: 1 });
+          }}
+        >
+          Use basic search
+        </Button>
+      </section>
+    );
   return (
-    <ExplorerResults
-      datasetId={datasetId}
-      fields={fields}
-      query={parsed.query}
-      change={change}
-    />
+    <div className="space-y-5">
+      <SearchControls
+        datasetId={datasetId}
+        fields={fields}
+        query={parsed.query}
+        advanced={advanced}
+        initialAdvanced={params.get('mode') === 'advanced'}
+        change={change}
+      />
+      {['admin', 'analyst'].includes(user?.role ?? '') && (
+        <SaveView datasetId={datasetId} query={query} />
+      )}
+      <ExplorerResults
+        datasetId={datasetId}
+        fields={fields}
+        query={parsed.query}
+        change={change}
+      />
+    </div>
   );
 }
 function ExplorerResults({
@@ -133,14 +211,21 @@ function ExplorerResults({
   fields,
   query,
   change,
+  savedData,
+  viewId,
 }: {
   datasetId: string;
   fields: DatasetField[];
   query: SearchRequest;
   change: (query: SearchRequest) => void;
+  savedData?: SearchResponse;
+  viewId?: string;
 }) {
-  const result = useSearchRecordsQuery({ datasetId, query });
-  const data = result.currentData;
+  const result = useSearchRecordsQuery(
+    { datasetId, query },
+    { skip: !!viewId },
+  );
+  const data = savedData ?? result.currentData;
   const [record, setRecord] = useState<string | null>(null);
   const key = datasetId + writeExplorerQuery(query);
   if (result.isError)
@@ -154,145 +239,151 @@ function ExplorerResults({
     );
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant="outline"
-          disabled={result.isFetching}
-          onClick={() => {
-            void result.refetch();
-          }}
-        >
-          Refresh records
-        </Button>
-        <details className="rounded-md border border-border bg-surface px-4 py-2">
-          <summary className="cursor-pointer text-sm font-medium">
-            Columns
-          </summary>
-          <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pb-2">
-            {[
-              { fieldKey: 'id', label: 'Record ID' },
-              ...fields.filter((f) => f.isVisible),
-            ].map((field) => {
-              const visible = query.columns ?? [
-                'id',
-                ...fields.filter((f) => f.isVisible).map((f) => f.fieldKey),
-              ];
-              return (
-                <label
-                  key={field.fieldKey}
-                  className="flex min-h-10 items-center gap-3 text-sm"
+      {!viewId && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            disabled={result.isFetching}
+            onClick={() => {
+              void result.refetch();
+            }}
+          >
+            Refresh records
+          </Button>
+          <details className="rounded-md border border-border bg-surface px-4 py-2">
+            <summary className="cursor-pointer text-sm font-medium">
+              Columns
+            </summary>
+            <div className="mt-3 grid max-h-72 gap-2 overflow-y-auto pb-2">
+              {[
+                { fieldKey: 'id', label: 'Record ID' },
+                ...fields.filter((f) => f.isVisible),
+              ].map((field) => {
+                const visible = query.columns ?? [
+                  'id',
+                  ...fields.filter((f) => f.isVisible).map((f) => f.fieldKey),
+                ];
+                return (
+                  <label
+                    key={field.fieldKey}
+                    className="flex min-h-10 items-center gap-3 text-sm"
+                  >
+                    {/* Keep the native toggle responsive while Next transitions
+                        URL state; remount when the applied value changes. */}
+                    <input
+                      key={String(visible.includes(field.fieldKey))}
+                      type="checkbox"
+                      defaultChecked={visible.includes(field.fieldKey)}
+                      disabled={
+                        visible.length === 1 && visible.includes(field.fieldKey)
+                      }
+                      onChange={(event) => {
+                        change({
+                          ...query,
+                          columns: event.target.checked
+                            ? [...new Set([...visible, field.fieldKey])]
+                            : visible.filter((k) => k !== field.fieldKey),
+                        });
+                      }}
+                    />
+                    {field.label}
+                  </label>
+                );
+              })}
+            </div>
+          </details>
+          <details className="rounded-md border border-border bg-surface px-4 py-2">
+            <summary className="cursor-pointer text-sm font-medium">
+              Sort priority
+            </summary>
+            <div className="mt-3 space-y-3 pb-2">
+              <p className="max-w-sm text-xs text-muted-foreground">
+                Add up to three fields in priority order. The server adds a
+                record ID tie-breaker.
+              </p>
+              {query.sort.map((sort, index) => (
+                <div
+                  key={sort.field}
+                  className="flex flex-wrap items-center gap-2 text-sm"
                 >
-                  <input
-                    type="checkbox"
-                    checked={visible.includes(field.fieldKey)}
-                    disabled={
-                      visible.length === 1 && visible.includes(field.fieldKey)
-                    }
-                    onChange={() => {
+                  <span>
+                    {index + 1}. {sort.field}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
                       change({
                         ...query,
-                        columns: visible.includes(field.fieldKey)
-                          ? visible.filter((k) => k !== field.fieldKey)
-                          : [...visible, field.fieldKey],
+                        page: 1,
+                        sort: query.sort.map((s) =>
+                          s.field === sort.field
+                            ? {
+                                ...s,
+                                direction:
+                                  s.direction === 'asc' ? 'desc' : 'asc',
+                              }
+                            : s,
+                        ),
                       });
                     }}
-                  />
-                  {field.label}
-                </label>
-              );
-            })}
-          </div>
-        </details>
-        <details className="rounded-md border border-border bg-surface px-4 py-2">
-          <summary className="cursor-pointer text-sm font-medium">
-            Sort priority
-          </summary>
-          <div className="mt-3 space-y-3 pb-2">
-            <p className="max-w-sm text-xs text-muted-foreground">
-              Add up to three fields in priority order. The server adds a record
-              ID tie-breaker.
-            </p>
-            {query.sort.map((sort, index) => (
-              <div
-                key={sort.field}
-                className="flex flex-wrap items-center gap-2 text-sm"
-              >
-                <span>
-                  {index + 1}. {sort.field}
-                </span>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    change({
-                      ...query,
-                      page: 1,
-                      sort: query.sort.map((s) =>
-                        s.field === sort.field
-                          ? {
-                              ...s,
-                              direction: s.direction === 'asc' ? 'desc' : 'asc',
-                            }
-                          : s,
-                      ),
-                    });
+                  >
+                    {sort.direction}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    aria-label={`Remove sort ${sort.field}`}
+                    onClick={() => {
+                      change({
+                        ...query,
+                        page: 1,
+                        sort: query.sort.filter((s) => s.field !== sort.field),
+                      });
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              <label className="block text-sm">
+                Add sort field
+                <select
+                  aria-label="Add sort field"
+                  value=""
+                  disabled={query.sort.length === 3}
+                  onChange={(event) => {
+                    if (event.target.value)
+                      change({
+                        ...query,
+                        page: 1,
+                        sort: [
+                          ...query.sort,
+                          { field: event.target.value, direction: 'asc' },
+                        ],
+                      });
                   }}
+                  className="ml-3 min-h-10 max-w-full rounded border border-border bg-surface p-2"
                 >
-                  {sort.direction}
-                </Button>
-                <Button
-                  variant="ghost"
-                  aria-label={`Remove sort ${sort.field}`}
-                  onClick={() => {
-                    change({
-                      ...query,
-                      page: 1,
-                      sort: query.sort.filter((s) => s.field !== sort.field),
-                    });
-                  }}
-                >
-                  Remove
-                </Button>
-              </div>
-            ))}
-            <label className="block text-sm">
-              Add sort field
-              <select
-                aria-label="Add sort field"
-                value=""
-                disabled={query.sort.length === 3}
-                onChange={(event) => {
-                  if (event.target.value)
-                    change({
-                      ...query,
-                      page: 1,
-                      sort: [
-                        ...query.sort,
-                        { field: event.target.value, direction: 'asc' },
-                      ],
-                    });
-                }}
-                className="ml-3 min-h-10 max-w-full rounded border border-border bg-surface p-2"
-              >
-                <option value="">Choose field</option>
-                {[
-                  { fieldKey: 'id', label: 'Record ID', isSortable: true },
-                  ...fields.filter((f) => f.isVisible),
-                ]
-                  .filter(
-                    (f) =>
-                      f.isSortable &&
-                      !query.sort.some((s) => s.field === f.fieldKey),
-                  )
-                  .map((f) => (
-                    <option key={f.fieldKey} value={f.fieldKey}>
-                      {f.label}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          </div>
-        </details>
-      </div>
+                  <option value="">Choose field</option>
+                  {[
+                    { fieldKey: 'id', label: 'Record ID', isSortable: true },
+                    ...fields.filter((f) => f.isVisible),
+                  ]
+                    .filter(
+                      (f) =>
+                        f.isSortable &&
+                        !query.sort.some((s) => s.field === f.fieldKey),
+                    )
+                    .map((f) => (
+                      <option key={f.fieldKey} value={f.fieldKey}>
+                        {f.label}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </div>
+          </details>
+        </div>
+      )}
       <p role="status" className="text-sm text-muted-foreground">
         {result.isFetching
           ? 'Loading records...'
@@ -318,15 +409,17 @@ function ExplorerResults({
               ? 'Change the query or clear filters to browse this dataset.'
               : 'This dataset has no records on this page.'}
           </p>
-          <Button
-            className="mt-5"
-            variant="outline"
-            onClick={() => {
-              change({ ...query, q: '', conditions: [], page: 1 });
-            }}
-          >
-            Reset results
-          </Button>
+          {!viewId && (
+            <Button
+              className="mt-5"
+              variant="outline"
+              onClick={() => {
+                change({ ...query, q: '', conditions: [], page: 1 });
+              }}
+            >
+              Reset results
+            </Button>
+          )}
         </div>
       ) : (
         <RecordTable
@@ -336,6 +429,7 @@ function ExplorerResults({
           query={query}
           change={change}
           openRecord={setRecord}
+          readOnly={!!viewId}
         />
       )}
       {data && (
@@ -351,6 +445,9 @@ function ExplorerResults({
           key={key + record}
           datasetId={datasetId}
           recordId={record}
+          returnQuery={
+            writeExplorerQuery(query) + (viewId ? `&view=${viewId}` : '')
+          }
           close={() => {
             setRecord(null);
           }}

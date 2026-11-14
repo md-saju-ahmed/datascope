@@ -1,22 +1,22 @@
 'use client';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useRef } from 'react';
+import Link from 'next/link';
 import { useGetRecordQuery } from '@/store/api/datasets-api';
 import { Button } from '@/components/ui/button';
-import {
-  DataLoading,
-  DataFailure,
-  displayValue,
-} from '@/features/datasets/data-state';
+import { DataLoading, DataFailure } from '@/features/datasets/data-state';
+import { RecordFields } from './record-fields';
 
 export function RecordPeek({
   datasetId,
   recordId,
   close,
+  returnQuery,
 }: {
   datasetId: string;
   recordId: string;
   close: () => void;
+  returnQuery: string;
 }) {
   const result = useGetRecordQuery({ datasetId, recordId });
   const opener = useRef(document.activeElement);
@@ -57,18 +57,16 @@ export function RecordPeek({
           ) : !result.currentData ? (
             <DataLoading />
           ) : (
-            <dl className="space-y-4">
-              {Object.entries(result.currentData.data).map(([key, value]) => (
-                <div key={key} className="border-b border-border pb-4">
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {key}
-                  </dt>
-                  <dd className="mt-2 whitespace-pre-wrap break-words text-sm">
-                    {displayValue(value)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+            <>
+              <Link
+                prefetch={false}
+                className="mb-5 inline-flex min-h-11 items-center text-primary underline"
+                href={`/datasets/${datasetId}/records/${recordId}?return=${encodeURIComponent(returnQuery)}`}
+              >
+                Open full record
+              </Link>
+              <RecordFields record={result.currentData.data} />
+            </>
           )}
         </Dialog.Content>
       </Dialog.Portal>

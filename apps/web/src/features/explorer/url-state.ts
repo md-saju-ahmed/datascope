@@ -1,8 +1,10 @@
 import {
   searchRequestSchema,
+  uuidParamSchema,
   type DatasetField,
   type SearchRequest,
 } from '@datascope/contracts';
+import { conditionError } from './query-validation.ts';
 
 export function readExplorerQuery(
   search: string,
@@ -49,6 +51,19 @@ export function readExplorerQuery(
     )
   )
     throw new Error('A filter field is unavailable.');
+  if (query.conditions.some((condition) => conditionError(condition, fields)))
+    throw new Error('A filter value is invalid.');
+  if (
+    params.getAll('mode').length > 1 ||
+    (params.has('mode') && params.get('mode') !== 'advanced')
+  )
+    throw new Error('Invalid Explorer mode.');
+  if (
+    params.getAll('view').length > 1 ||
+    (params.has('view') &&
+      !uuidParamSchema.safeParse(params.get('view')).success)
+  )
+    throw new Error('Invalid saved view context.');
   return query;
 }
 export function writeExplorerQuery(query: SearchRequest): string {

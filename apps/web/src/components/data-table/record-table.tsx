@@ -35,12 +35,14 @@ export function RecordTable({
   query,
   change,
   openRecord,
+  readOnly = false,
 }: {
   data: Row[];
   fields: DatasetField[];
   query: SearchRequest;
   change: (query: SearchRequest) => void;
   openRecord: (id: string) => void;
+  readOnly?: boolean;
 }) {
   const [selection, setSelection] = useState<RowSelectionState>({});
   const columns = useMemo<ColumnDef<Row>[]>(
@@ -91,7 +93,7 @@ export function RecordTable({
               <Button
                 variant="ghost"
                 className="justify-start px-1 text-xs"
-                disabled={!field.isSortable}
+                disabled={readOnly || !field.isSortable}
                 onClick={() => {
                   const next = sort
                     ? query.sort.map((item) =>
@@ -140,7 +142,7 @@ export function RecordTable({
         ),
       },
     ],
-    [fields, query, change, openRecord],
+    [fields, query, change, openRecord, readOnly],
   );
   const table = useReactTable({
     data,
