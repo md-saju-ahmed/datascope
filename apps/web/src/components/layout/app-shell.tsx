@@ -138,7 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-surface p-4 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r border-border bg-surface p-4 lg:flex">
         <a
           href="/dashboard"
           className="mb-8 flex min-h-10 items-center gap-3 px-3 text-xl font-bold tracking-tight"

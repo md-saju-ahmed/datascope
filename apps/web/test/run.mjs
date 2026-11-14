@@ -269,7 +269,7 @@ try {
     [
       'test',
       '--grep-invert',
-      'FE05/06|FE07|FE08|FE09|FE10|FE11|FE12',
+      'FE05/06|FE07|FE08|FE09|FE10|FE11|FE12|FE13',
       '--output',
       'test-results/regressions',
     ],
@@ -305,7 +305,15 @@ try {
   );
   let featureCode = 0;
   const exportDataset = randomUUID();
-  for (const phase of ['FE07', 'FE08', 'FE09', 'FE10', 'FE11', 'FE12']) {
+  for (const phase of [
+    'FE07',
+    'FE08',
+    'FE09',
+    'FE10',
+    'FE11',
+    'FE12',
+    'FE13',
+  ]) {
     if (phase === 'FE08') await addDetailFixtures();
     let analyticsEmpty, analyticsGroups;
     if (phase === 'FE10') {

@@ -478,7 +478,9 @@ test('FE10 Viewer/read-only/hidden dataset denials, malformed URLs and live gran
   await signIn(context);
   await page.goto(`/analytics?datasetId=${required('FE05_RESTRICTED')}`);
   await expect(
-    page.getByRole('heading', { name: 'Dataset unavailable', exact: true }),
+    page
+      .getByRole('heading', { name: 'Dataset unavailable', exact: true })
+      .first(),
   ).toBeVisible();
   expect(
     (
