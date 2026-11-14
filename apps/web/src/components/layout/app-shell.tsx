@@ -22,6 +22,7 @@ import { authSlice } from '@/store/slices/auth-slice';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { PreferencesBridge } from '@/features/settings/preferences';
 
 const navigation = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -45,8 +46,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const selectedDataset = useAppSelector(
     datasetSlice.selectors.selectActiveDatasetId,
   );
+  const defaultDataset = useAppSelector(
+    (s) => s.uiPreferences.defaultDatasetId,
+  );
   const routeDataset = /^\/datasets\/([a-f0-9-]{36})\//i.exec(pathname)?.[1];
-  const activeDataset = routeDataset ?? selectedDataset;
+  const activeDataset = routeDataset ?? selectedDataset ?? defaultDataset;
   if (!user)
     return (
       <main className="mx-auto max-w-xl p-8">
@@ -127,6 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
+      <PreferencesBridge />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded focus:bg-surface focus:p-3"

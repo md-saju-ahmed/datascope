@@ -269,7 +269,7 @@ try {
     [
       'test',
       '--grep-invert',
-      'FE05/06|FE07|FE08|FE09|FE10',
+      'FE05/06|FE07|FE08|FE09|FE10|FE11',
       '--output',
       'test-results/regressions',
     ],
@@ -304,7 +304,7 @@ try {
     explorerTests.once('exit', (code) => resolve(code ?? 1)),
   );
   let featureCode = 0;
-  for (const phase of ['FE07', 'FE08', 'FE09', 'FE10']) {
+  for (const phase of ['FE07', 'FE08', 'FE09', 'FE10', 'FE11']) {
     if (phase === 'FE08') await addDetailFixtures();
     let analyticsEmpty, analyticsGroups;
     if (phase === 'FE10') {
@@ -332,6 +332,13 @@ try {
         `insert into dataset_records(dataset_id,name,status,category,created_at)
         select $1,'Analytics group '||n,case when n<=2 then null else 'Status '||n end,case when n<=2 then null else 'Category '||n end,now()-interval '1 day' from generate_series(1,57) n`,
         [analyticsGroups],
+      );
+    }
+    if (phase === 'FE11') {
+      // This owned fixture exercises the final-active-Admin denial safely.
+      await fixture.pool.query(
+        "update users set is_active=false where role='admin' and id<>$1",
+        [roleIds.admin],
       );
     }
     await stop(api);

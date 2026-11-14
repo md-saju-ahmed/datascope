@@ -14,6 +14,7 @@ import type {
 } from '@datascope/contracts';
 import { displayValue } from '@/features/datasets/data-state';
 import { Button } from '@/components/ui/button';
+import { useAppSelector } from '@/store/hooks';
 
 type Row = SearchResponse['data'][number];
 function Highlight({ value, term }: { value: unknown; term: string }) {
@@ -44,6 +45,7 @@ export function RecordTable({
   openRecord: (id: string) => void;
   readOnly?: boolean;
 }) {
+  const density = useAppSelector((s) => s.uiPreferences.density);
   const [selection, setSelection] = useState<RowSelectionState>({});
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
@@ -263,7 +265,12 @@ export function RecordTable({
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className="px-4 py-3 align-top"
+                    data-density={density}
+                    className={
+                      density === 'compact'
+                        ? 'px-4 py-2 align-top'
+                        : 'px-4 py-3 align-top'
+                    }
                     style={{ width: cell.column.getSize() }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

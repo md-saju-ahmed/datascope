@@ -90,6 +90,7 @@ export const datasetsApi = baseApi.injectEndpoints({
               'Activity',
               'Analytics',
               'Platform',
+              'Preferences',
             ]
           : [],
     }),
@@ -199,6 +200,7 @@ export const datasetsApi = baseApi.injectEndpoints({
               'History',
               'Activity',
               'Analytics',
+              'Preferences',
             ]
           : [],
     }),
@@ -228,6 +230,7 @@ export const datasetsApi = baseApi.injectEndpoints({
               'History',
               'Activity',
               'Analytics',
+              'Preferences',
             ]
           : [],
     }),

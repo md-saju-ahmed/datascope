@@ -111,6 +111,7 @@ export const managementApi = baseApi.injectEndpoints({
               'Activity',
               'Analytics',
               'Platform',
+              'Preferences',
             ]
           : [],
     }),

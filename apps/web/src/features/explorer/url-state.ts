@@ -9,6 +9,7 @@ import { conditionError } from './query-validation.ts';
 export function readExplorerQuery(
   search: string,
   fields: DatasetField[],
+  defaultPageSize: SearchRequest['pageSize'] = 25,
 ): SearchRequest {
   if (search.length > 8000) throw new Error('The query URL is too long.');
   const params = new URLSearchParams(search);
@@ -21,7 +22,7 @@ export function readExplorerQuery(
     conditions: json('filters'),
     sort: json('sort'),
     page: Number(params.get('page') ?? 1),
-    pageSize: Number(params.get('pageSize') ?? 25),
+    pageSize: Number(params.get('pageSize') ?? defaultPageSize),
     ...(params.has('columns') ? { columns: json('columns') } : {}),
   });
   const visible = fields.filter((f) => f.isVisible);

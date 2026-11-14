@@ -526,12 +526,15 @@ test('FE10 Viewer/read-only/hidden dataset denials, malformed URLs and live gran
       page.getByRole('region', { name: 'Total records', exact: true }),
     ).toHaveCount(0);
     await expect(
-      page.getByText('Analytics requires analyze access', { exact: false }).or(
-        page.getByRole('heading', {
-          name: 'Dataset unavailable',
-          exact: true,
-        }),
-      ),
+      page
+        .getByText('Analytics requires analyze access', { exact: false })
+        .or(
+          page.getByRole('heading', {
+            name: 'Dataset unavailable',
+            exact: true,
+          }),
+        )
+        .first(),
     ).toBeVisible();
   } finally {
     expect(

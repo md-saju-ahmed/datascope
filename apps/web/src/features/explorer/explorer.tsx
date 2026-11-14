@@ -24,6 +24,7 @@ import { SearchControls } from './search-controls';
 import { advancedQuery, canAuthorAdvanced } from './query-validation';
 import { SaveView } from '@/features/saved-views/save-view';
 import { SavedViewExplorer } from '@/features/saved-views/saved-view-explorer';
+import { useGetPreferencesQuery } from '@/store/api/management-api';
 
 export function Explorer({
   datasetId,
@@ -104,13 +105,35 @@ function ExplorerQuery({
   const advanced = canAuthorAdvanced(user, dataset);
   const params = useSearchParams();
   const viewId = params.get('view');
+  const preferences = useGetPreferencesQuery(undefined);
+  const [useDefaults, setUseDefaults] = useState(false);
+  const defaultSize = preferences.currentData?.data.defaultPageSize ?? 25;
   const parsed = useMemo(() => {
     try {
-      return { query: readExplorerQuery(params.toString(), fields) };
+      return {
+        query: readExplorerQuery(
+          params.toString(),
+          fields,
+          viewId ? 25 : defaultSize,
+        ),
+      };
     } catch {
       return { query: null };
     }
-  }, [params, fields]);
+  }, [params, fields, defaultSize, viewId]);
+  useEffect(() => {
+    if (
+      !viewId &&
+      !params.has('pageSize') &&
+      parsed.query &&
+      (preferences.currentData || useDefaults)
+    )
+      window.history.replaceState(
+        null,
+        '',
+        `?${writeExplorerQuery(parsed.query)}${params.get('mode') === 'advanced' ? '&mode=advanced' : ''}`,
+      );
+  }, [params, parsed.query, viewId, preferences.currentData, useDefaults]);
   const change = useCallback(
     (query: SearchRequest) => {
       window.history.pushState(
@@ -121,6 +144,28 @@ function ExplorerQuery({
     },
     [viewId],
   );
+  if (parsed.query && !viewId && !params.has('pageSize')) {
+    if (preferences.isError && !useDefaults)
+      return (
+        <div className="space-y-4">
+          <DataFailure
+            error={preferences.error}
+            retry={() => {
+              void preferences.refetch();
+            }}
+          />
+          <Button
+            variant="outline"
+            onClick={() => {
+              setUseDefaults(true);
+            }}
+          >
+            Use default page size
+          </Button>
+        </div>
+      );
+    return <DataLoading />;
+  }
   if (
     !parsed.query ||
     (viewId !== null &&

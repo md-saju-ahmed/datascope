@@ -78,8 +78,10 @@ test('registration validates, creates Viewer without session, explicitly signs i
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page).toHaveURL(/\/settings$/);
-  await expect(page.getByText(email)).toBeVisible();
-  await expect(page.getByText('viewer', { exact: true })).toBeVisible();
+  await expect(page.getByRole('banner').getByText(email)).toBeVisible();
+  await expect(
+    page.getByRole('banner').getByText('viewer', { exact: true }),
+  ).toBeVisible();
   const cookie = (await context.cookies()).find(
     (item) => item.name === 'datascope_session',
   );
@@ -93,7 +95,7 @@ test('registration validates, creates Viewer without session, explicitly signs i
   await expect(
     page.getByRole('alert').filter({ hasText: 'Sign out failed' }),
   ).toBeVisible();
-  await expect(page.getByText(email)).toBeVisible();
+  await expect(page.getByRole('banner').getByText(email)).toBeVisible();
   await page.unroute('**/api/v1/auth/logout');
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -122,7 +124,9 @@ test('login failure recovers, rejects malicious return path, restores valid sess
   await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto('/login?returnTo=%2Fsettings');
   await expect(page).toHaveURL(/\/settings$/);
-  await expect(page.getByText('analyst@fe01.test')).toBeVisible();
+  await expect(
+    page.getByRole('banner').getByText('analyst@fe01.test'),
+  ).toBeVisible();
   await page.route('**/api/v1/auth/me', (route) => route.abort());
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(
@@ -131,7 +135,9 @@ test('login failure recovers, rejects malicious return path, restores valid sess
   await expect(page.getByText('analyst@fe01.test')).toHaveCount(0);
   await page.unroute('**/api/v1/auth/me');
   await page.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByText('analyst@fe01.test')).toBeVisible();
+  await expect(
+    page.getByRole('banner').getByText('analyst@fe01.test'),
+  ).toBeVisible();
   // A real expired database session, not a mocked API response.
   const expired = process.env.FE01_EXPIRED;
   if (!expired) throw new Error('Missing expired fixture');

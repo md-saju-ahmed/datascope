@@ -63,3 +63,14 @@ test('default query is bounded; hidden/nonsortable columns never advertised', ()
     ),
   ).toThrow();
 });
+test('persisted page defaults apply only when the URL omits pageSize', () => {
+  expect(readExplorerQuery('', fields, 10).pageSize).toBe(10);
+  expect(readExplorerQuery('pageSize=50', fields, 10).pageSize).toBe(50);
+  expect(
+    readExplorerQuery(
+      writeExplorerQuery(searchRequestSchema.parse({ pageSize: 100 })),
+      fields,
+      10,
+    ).pageSize,
+  ).toBe(100);
+});
