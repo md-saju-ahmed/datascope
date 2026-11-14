@@ -15,7 +15,8 @@ import {
   Menu,
   ArrowUpRight,
 } from 'lucide-react';
-import type { CurrentUser } from '@datascope/contracts';
+import { useAppSelector } from '@/store/hooks';
+import { authSlice } from '@/store/slices/auth-slice';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -35,15 +36,22 @@ const administration = [
   { href: '/admin/permissions', label: 'Permissions', icon: Shield },
   { href: '/admin/system', label: 'System', icon: SlidersHorizontal },
 ];
-export function AppShell({
-  user,
-  children,
-}: {
-  user: CurrentUser;
-  children: ReactNode;
-}) {
+export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const user = useAppSelector(authSlice.selectors.selectUser);
+  if (!user)
+    return (
+      <main className="mx-auto max-w-xl p-8">
+        <h1 className="text-2xl font-semibold">Sign in required</h1>
+        <a
+          href="/login"
+          className="mt-4 inline-flex min-h-10 items-center text-primary underline"
+        >
+          Go to sign in
+        </a>
+      </main>
+    );
   const items = navigation.filter(
     (item) => item.href !== '/analytics' || user.role !== 'viewer',
   );
