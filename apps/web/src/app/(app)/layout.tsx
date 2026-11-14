@@ -1,3 +1,4 @@
+import { SessionBoundary } from '@/features/auth/session-boundary';
 import type { ReactNode } from 'react';
 import { requireSession } from '@/lib/session';
 import { AppShell } from '@/components/layout/app-shell';
@@ -13,7 +14,9 @@ export default async function ProtectedLayout({
       key={`${user.id}:${user.role}:${user.email}`}
       initialUser={user}
     >
-      <AppShell>{children}</AppShell>
+      <SessionBoundary>
+        <AppShell>{children}</AppShell>
+      </SessionBoundary>
     </StoreProvider>
   );
 }

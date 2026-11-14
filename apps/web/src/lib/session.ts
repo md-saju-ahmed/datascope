@@ -1,11 +1,14 @@
 import 'server-only';
 import { cache } from 'react';
-import { cookies } from 'next/headers';
+import { safeReturnPath, signInPath } from '../features/auth/navigation';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { authUserResponseSchema } from '@datascope/contracts';
 
 // React cache deduplicates within one server render, never across users/requests.
 export const requireSession = cache(async () => {
+  const target = safeReturnPath((await headers()).get('x-datascope-path'));
+  const login = signInPath(target);
   const jar = await cookies();
   const name =
     process.env.API_SESSION_COOKIE_NAME ??
@@ -16,7 +19,7 @@ export const requireSession = cache(async () => {
     throw new Error('Invalid session cookie configuration');
   const sessions = jar.getAll(name);
   const token = sessions.length === 1 ? sessions[0]?.value : undefined;
-  if (!token || !/^[0-9a-f]{64}$/.test(token)) redirect('/login');
+  if (!token || !/^[0-9a-f]{64}$/.test(token)) redirect(login);
   const origin = new URL(
     process.env.API_INTERNAL_ORIGIN ?? 'http://127.0.0.1:4000',
   );
@@ -40,7 +43,7 @@ export const requireSession = cache(async () => {
   } catch {
     throw new Error('Session verification unavailable');
   }
-  if (response.status === 401) redirect('/login');
+  if (response.status === 401) redirect(login);
   if (!response.ok) throw new Error('Session verification unavailable');
   const parsed = authUserResponseSchema.safeParse(await response.json());
   if (!parsed.success) throw new Error('Session verification unavailable');

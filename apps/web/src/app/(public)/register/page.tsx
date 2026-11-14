@@ -1,16 +1,20 @@
-export default function RegistrationBoundary() {
+import { StoreProvider } from '@/store/provider';
+import { SessionBoundary } from '@/features/auth/session-boundary';
+import { AuthForm } from '@/features/auth/auth-form';
+import { safeReturnPath } from '@/features/auth/navigation';
+export default async function AuthPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const target = safeReturnPath((await searchParams).returnTo);
   return (
-    <>
-      <h1 className="text-2xl font-semibold">Registration</h1>
-      <p className="mt-4 leading-7 text-muted-foreground">
-        Registration is not available yet.
-      </p>
-      <a
-        className="mt-6 inline-flex min-h-10 items-center text-primary underline"
-        href="/"
-      >
-        Back to DataScope
-      </a>
-    </>
+    <div className="mx-auto max-w-lg">
+      <StoreProvider initialUser={null}>
+        <SessionBoundary publicAuth returnTo={target}>
+          <AuthForm registration={true} returnTo={target} />
+        </SessionBoundary>
+      </StoreProvider>
+    </div>
   );
 }

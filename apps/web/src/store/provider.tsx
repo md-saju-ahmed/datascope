@@ -13,14 +13,20 @@ export function StoreProvider({
   children: ReactNode;
 }) {
   const storeRef = useRef<AppStore | null>(null);
+  const effectVersion = useRef(0);
   if (!storeRef.current) storeRef.current = makeStore(initialUser);
   useEffect(() => {
     const store = storeRef.current;
     if (!store) return;
+    const version = ++effectVersion.current;
     const unsubscribe = setupListeners(store.dispatch);
     return () => {
       unsubscribe();
-      store.clearApi();
+      // Strict Mode replays setup/cleanup synchronously in development. A real
+      // unmount still clears private state, after any immediate replay can cancel it.
+      queueMicrotask(() => {
+        if (effectVersion.current === version) store.clearApi();
+      });
     };
   }, []);
   return <Provider store={storeRef.current}>{children}</Provider>;

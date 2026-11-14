@@ -1,4 +1,5 @@
 'use client';
+import { LogoutButton } from '@/features/auth/logout-button';
 import { useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import {
@@ -137,16 +138,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <span className="text-sm font-medium">{current}</span>
           </div>
-          <div className="min-w-0 max-w-full text-right">
-            <p
-              className="max-w-52 truncate text-sm font-medium"
-              title={user.email}
-            >
-              {user.email}
-            </p>
-            <p className="text-xs capitalize text-muted-foreground">
-              {user.role}
-            </p>
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-4">
+            <div className="text-right">
+              <p
+                className="max-w-52 truncate text-sm font-medium"
+                title={user.email}
+              >
+                {user.email}
+              </p>
+              <p className="text-xs capitalize text-muted-foreground">
+                {user.role}
+              </p>
+            </div>
+            <LogoutButton />
           </div>
         </header>
         <main

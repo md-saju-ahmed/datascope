@@ -35,7 +35,7 @@ test('public boundaries and unauthenticated/forged private entry', async ({
   }
   for (const path of ['/dashboard', '/admin/users', '/datasets']) {
     await page.goto(path);
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
     await expect(page.getByText('admin@fe01.test')).toHaveCount(0);
   }
   await context.addCookies([
@@ -47,7 +47,7 @@ test('public boundaries and unauthenticated/forged private entry', async ({
     },
   ]);
   await page.goto('/dashboard');
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login(?:\?|$)/);
   const expired = process.env.FE01_EXPIRED;
   if (!expired) throw new Error('Missing expired fixture');
   await context.addCookies([
@@ -59,7 +59,7 @@ test('public boundaries and unauthenticated/forged private entry', async ({
     },
   ]);
   await page.goto('/dashboard');
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login(?:\?|$)/);
 });
 test('backend outage fails closed with recoverable error and no identity leak', async ({
   page,
@@ -169,5 +169,5 @@ for (const role of ['viewer', 'analyst', 'admin'])
     if (!cookie) throw new Error('Missing session');
     await context.addCookies([cookie]);
     await page.goto('/settings');
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
   });

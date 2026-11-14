@@ -122,6 +122,17 @@ try {
     },
   );
   await ready('http://localhost:3101');
+  start(
+    'node_modules/next/dist/bin/next',
+    ['dev', '--hostname', '127.0.0.1', '--port', '3102'],
+    web,
+    {
+      NODE_ENV: 'development',
+      API_INTERNAL_ORIGIN: 'http://127.0.0.1:4100',
+      API_SESSION_COOKIE_NAME: 'datascope_session',
+    },
+  );
+  await ready('http://localhost:3102');
   const runtime = start(
     'node_modules/jest/bin/jest.js',
     ['--config', 'jest.runtime.config.cjs', '--runInBand'],
