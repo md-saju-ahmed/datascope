@@ -27,6 +27,12 @@ const expired = randomBytes(32).toString('hex');
 const children = [];
 let fixture;
 let created = false;
+async function stop(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = new Promise((resolve) => child.once('exit', resolve));
+  child.kill();
+  await exited;
+}
 function start(file, args, cwd, env) {
   const child = spawn(process.execPath, [file, ...args], {
     cwd,
@@ -85,6 +91,12 @@ try {
     await fixture.db
       .insert(schema.users)
       .values({ id, email: `${role}@fe01.test`, role, passwordHash });
+    if (role === 'viewer' || role === 'analyst')
+      await fixture.db.insert(schema.datasetPermissions).values({
+        datasetId: seedIds.primary,
+        userId: id,
+        permission: role === 'viewer' ? 'read' : 'analyze',
+      });
     if (role === 'viewer')
       await fixture.db.insert(schema.authSessions).values({
         userId: id,
@@ -93,7 +105,13 @@ try {
         expiresAt: new Date(Date.now() - 3600000),
       });
   }
-  start('apps/api/dist/main.js', [], root, {
+  await fixture.db.insert(schema.users).values({
+    id: randomUUID(),
+    email: 'empty@fe01.test',
+    role: 'viewer',
+    passwordHash,
+  });
+  let api = start('apps/api/dist/main.js', [], root, {
     NODE_ENV: 'test',
     DATABASE_URL: url.toString(),
     PORT: '4100',
@@ -150,20 +168,42 @@ try {
   const runtimeCode = await new Promise((resolve) =>
     runtime.once('exit', (code) => resolve(code ?? 1)),
   );
-  const tests = start('node_modules/@playwright/test/cli.js', ['test'], web, {
-    FE01_PASSWORD: password,
-    FE01_EXPIRED: expired,
-  });
+  const tests = start(
+    'node_modules/@playwright/test/cli.js',
+    ['test', '--grep-invert', 'FE05/06'],
+    web,
+    {
+      FE01_PASSWORD: password,
+      FE01_EXPIRED: expired,
+    },
+  );
   const browserCode = await new Promise((resolve) =>
     tests.once('exit', (code) => resolve(code ?? 1)),
   );
-  process.exitCode = runtimeCode || browserCode;
+  await stop(api);
+  api = start('apps/api/dist/main.js', [], root, {
+    NODE_ENV: 'test',
+    DATABASE_URL: url.toString(),
+    PORT: '4100',
+    APP_ORIGIN: 'http://localhost:3100',
+  });
+  await ready('http://127.0.0.1:4100/api/v1/health/ready');
+  const explorerTests = start(
+    'node_modules/@playwright/test/cli.js',
+    ['test', '--grep', 'FE05/06'],
+    web,
+    {
+      FE01_PASSWORD: password,
+      FE05_PRIMARY: seedIds.primary,
+      FE05_RESTRICTED: seedIds.restricted,
+    },
+  );
+  const explorerCode = await new Promise((resolve) =>
+    explorerTests.once('exit', (code) => resolve(code ?? 1)),
+  );
+  process.exitCode = runtimeCode || browserCode || explorerCode;
 } finally {
-  for (const child of children.reverse())
-    if (child.exitCode === null) {
-      child.kill();
-      await new Promise((resolve) => child.once('exit', resolve));
-    }
+  for (const child of children.reverse()) await stop(child);
   if (fixture) await fixture.pool.end();
   if (created) administerDisposableDatabase(database, false);
 }

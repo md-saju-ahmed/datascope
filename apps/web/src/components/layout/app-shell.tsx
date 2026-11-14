@@ -17,6 +17,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
+import { datasetSlice } from '@/store/slices/dataset-slice';
 import { authSlice } from '@/store/slices/auth-slice';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
@@ -41,6 +42,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const user = useAppSelector(authSlice.selectors.selectUser);
+  const selectedDataset = useAppSelector(
+    datasetSlice.selectors.selectActiveDatasetId,
+  );
+  const routeDataset = /^\/datasets\/([a-f0-9-]{36})\//i.exec(pathname)?.[1];
+  const activeDataset = routeDataset ?? selectedDataset;
   if (!user)
     return (
       <main className="mx-auto max-w-xl p-8">
@@ -58,16 +64,38 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   const current =
     [...navigation, ...administration].find((item) => pathname === item.href)
-      ?.label ?? 'Workspace';
+      ?.label ??
+    (routeDataset
+      ? pathname.endsWith('/fields')
+        ? 'Field information'
+        : 'Data Explorer'
+      : 'Workspace');
   function links(list: typeof navigation) {
     return list.map(({ href, label, icon: Icon }) => (
       <a
         key={href}
-        href={href}
-        aria-current={pathname === href ? 'page' : undefined}
+        href={
+          href === '/search'
+            ? activeDataset
+              ? `/datasets/${activeDataset}/explore`
+              : '/datasets'
+            : href
+        }
+        aria-current={
+          pathname === href ||
+          (href === '/search' &&
+            !!routeDataset &&
+            pathname.endsWith('/explore'))
+            ? 'page'
+            : undefined
+        }
         className={cn(
           'flex min-h-11 items-center gap-3 rounded-md px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground',
-          pathname === href && 'bg-primary/10 font-medium text-primary',
+          (pathname === href ||
+            (href === '/search' &&
+              !!routeDataset &&
+              pathname.endsWith('/explore'))) &&
+            'bg-primary/10 font-medium text-primary',
         )}
       >
         <Icon size={18} aria-hidden="true" />

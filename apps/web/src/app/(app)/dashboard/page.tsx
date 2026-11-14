@@ -24,8 +24,8 @@ export default async function Dashboard() {
         <div className="mt-6 border-t border-border pt-6">
           <h3 className="font-medium">Next: your dataset workspace</h3>
           <p className="mb-5 mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-            The dataset library and exploration tools are being prepared. No
-            dataset counts or activity are available on this overview yet.
+            Open the dataset library to explore data available to your account.
+            Recent activity is not available on this overview yet.
           </p>
           <Button asChild variant="outline">
             <a href="/datasets">

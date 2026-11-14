@@ -13,26 +13,27 @@
   },
   "dependencies": {
     "@datascope/contracts": "workspace:*",
+    "@radix-ui/react-dialog": "1.3.1",
+    "@radix-ui/react-slot": "1.5.0",
     "@reduxjs/toolkit": "2.14.0",
-    "react-redux": "9.3.1",
+    "@tanstack/react-table": "8.21.3",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.72.0",
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "@radix-ui/react-dialog": "1.3.1",
-    "@radix-ui/react-slot": "1.5.0",
-    "class-variance-authority": "0.7.1",
-    "clsx": "2.1.1",
-    "tailwind-merge": "3.7.0",
-    "lucide-react": "1.72.0",
-    "server-only": "0.0.1"
+    "react-redux": "9.3.1",
+    "server-only": "0.0.1",
+    "tailwind-merge": "3.7.0"
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",
     "@tailwindcss/postcss": "4.3.5",
-    "tailwindcss": "4.3.5",
+    "@types/jest": "30.0.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "jest": "30.2.0",
-    "@types/jest": "30.0.0"
+    "tailwindcss": "4.3.5"
   }
 }
