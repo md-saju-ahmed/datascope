@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-labelledby="title">
+  <title id="title">DataScope Logo Icon</title>
+  <path d="M90 18 157 55 90 92 23 55 90 18Z"
+        fill="none" stroke="#101D42" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M90 40 117 55 90 70 63 55 90 40Z" fill="#0f766e"/>
+  <path d="M23 82 90 119 157 82"
+        fill="none" stroke="#101D42" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M23 109 90 146 157 109"
+        fill="none" stroke="#101D42" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

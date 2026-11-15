@@ -141,9 +141,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r border-border bg-surface p-4 lg:flex">
         <a
           href="/dashboard"
-          className="mb-8 flex min-h-10 items-center gap-3 px-3 text-xl font-bold tracking-tight"
+          className="mb-8 flex min-h-10 items-center gap-3 px-3 text-xl font-bold tracking-tight text-foreground transition-opacity hover:opacity-90"
         >
-          <Database className="text-primary" aria-hidden="true" />
+          <img
+            src="/logo.svg"
+            alt=""
+            width={28}
+            height={28}
+            className="h-7 w-7"
+            aria-hidden="true"
+          />
           DataScope
         </a>
         {nav}
@@ -166,10 +173,31 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </Button>
                 }
               >
+                <div className="mb-6 flex items-center gap-2.5 px-3">
+                  <img
+                    src="/logo.svg"
+                    alt=""
+                    width={24}
+                    height={24}
+                    className="h-6 w-6"
+                    aria-hidden="true"
+                  />
+                  <span className="text-lg font-bold">DataScope</span>
+                </div>
                 {nav}
               </Sheet>
             </div>
-            <span className="text-sm font-medium">{current}</span>
+            <div className="flex items-center gap-2.5">
+              <img
+                src="/logo.svg"
+                alt=""
+                width={22}
+                height={22}
+                className="h-5.5 w-5.5 lg:hidden"
+                aria-hidden="true"
+              />
+              <span className="text-sm font-medium">{current}</span>
+            </div>
           </div>
           <div className="flex min-w-0 max-w-full flex-wrap items-center gap-4">
             <div className="text-right">

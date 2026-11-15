@@ -107,9 +107,17 @@ export function AuthForm({
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="border-b border-border bg-muted/40 p-6 sm:px-10 sm:py-8">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-primary">
-          Your data workspace
-        </p>
+        <div className="mb-4 flex items-center gap-3">
+          <img
+            src="/logo.svg"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8"
+            aria-hidden="true"
+          />
+          <span className="text-xl font-bold tracking-tight">DataScope</span>
+        </div>
         <h1 className="text-2xl font-semibold tracking-tight">
           {registration ? 'Create your account' : 'Sign in to DataScope'}
         </h1>

@@ -3,9 +3,17 @@ import { ArrowRight, Database, Filter, ShieldCheck } from 'lucide-react';
 export default function PublicEntry() {
   return (
     <>
-      <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-primary">
-        Enterprise data discovery
-      </p>
+      <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3.5 py-1.5 text-xs font-medium text-foreground">
+        <img
+          src="/logo.svg"
+          alt=""
+          width={16}
+          height={16}
+          className="h-4 w-4"
+          aria-hidden="true"
+        />
+        <span>Enterprise Data Discovery Platform</span>
+      </div>
       <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
         Find the signal.
         <br />
