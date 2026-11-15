@@ -1,0 +1,52 @@
+# Render Blueprint — DataScope NestJS API
+# https://render.com/docs/blueprint-spec
+#
+# This file configures the NestJS API service on Render.
+# Set all required environment variables in the Render dashboard under
+# the service → Environment tab (never commit secret values here).
+#
+# REQUIRED dashboard environment variables (see docs/evidence/rel-03/setup-guide.md):
+#   DATABASE_URL          — Neon pooled connection string
+#   APP_ORIGIN            — Exact Vercel deployment origin (e.g. https://datascope.vercel.app)
+#   NODE_ENV              — production
+#   API_HOST              — 0.0.0.0
+#   PORT                  — 4000 (Render sets $PORT automatically; keep both consistent)
+#   DB_POOL_MAX           — 5 (Neon free tier has 10-connection ceiling)
+#   DB_CONNECTION_TIMEOUT_MS — 5000
+#   DB_STATEMENT_TIMEOUT_MS  — 10000
+
+services:
+  - type: web
+    name: datascope-api
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: .
+    buildCommand: |
+      npm install -g pnpm@12.18.0 &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @datascope/contracts build &&
+      pnpm --filter @datascope/db build &&
+      pnpm --filter @datascope/api build
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /api/v1/health/live
+    envVars:
+      - key: NODE_VERSION
+        value: 24.0.0
+      - key: NODE_ENV
+        value: production
+      - key: API_HOST
+        value: 0.0.0.0
+      # PORT is provided automatically by Render; set to 4000 to match environment.ts default
+      - key: PORT
+        value: 4000
+      - key: DB_POOL_MAX
+        value: 5
+      - key: DB_CONNECTION_TIMEOUT_MS
+        value: 5000
+      - key: DB_STATEMENT_TIMEOUT_MS
+        value: 10000
+      # Set these in the Render dashboard (not here — values are secrets):
+      # DATABASE_URL  — from Neon → Connection → Pooled connection string
+      # APP_ORIGIN    — your Vercel deployment URL (exact origin, no trailing slash)

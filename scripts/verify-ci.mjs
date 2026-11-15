@@ -170,10 +170,20 @@ function main() {
     '[verify-ci] ✓ Build commands verified: pnpm build, API container build, Web container build',
   );
 
-  // 12. Verify deployment script and core production assets
+  // 12. Verify deployment steps and core production assets (Vercel + Render)
   assert(
-    workflowContent.includes('node scripts/deploy.mjs'),
-    'Deploy job must execute scripts/deploy.mjs',
+    workflowContent.includes('vercel --prod') ||
+      workflowContent.includes('vercel deploy'),
+    'Deploy job must invoke Vercel CLI for web deployment',
+  );
+  assert(
+    workflowContent.includes('RENDER_DEPLOY_HOOK_URL') ||
+      workflowContent.includes('render.yaml'),
+    'Deploy job must reference Render deployment hook or render.yaml',
+  );
+  assert(
+    workflowContent.includes('smoke-deployment.mjs'),
+    'Deploy job must run smoke-deployment.mjs to verify live endpoints',
   );
   const assetCheck = verifyDeploymentAssets(root);
   assert(
@@ -181,7 +191,7 @@ function main() {
     `Missing required deployment assets: ${assetCheck.missing.join(', ')}`,
   );
   console.log(
-    `[verify-ci] ✓ Production deployment assets verified (${String(assetCheck.checkedCount)} files present)`,
+    `[verify-ci] ✓ Production deployment verified: Vercel web + Render API + smoke test (${String(assetCheck.checkedCount)} assets present)`,
   );
 
   const summary = {
@@ -206,7 +216,7 @@ function main() {
   console.log('\n[verify-ci] === CI/CD Pipeline Audit Summary ===');
   console.log(JSON.stringify(summary, null, 2));
   console.log(
-    '\n[verify-ci] All REL-02 CI/CD pipeline checks passed successfully.',
+    '\n[verify-ci] All REL-02/REL-03 CI/CD pipeline checks passed successfully.',
   );
 }
 
