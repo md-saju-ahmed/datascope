@@ -1,4 +1,5 @@
 import { ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -11,7 +12,7 @@ export function AccessDenied() {
         Your account does not have access to this area.
       </p>
       <Button asChild>
-        <a href="/dashboard">Back to overview</a>
+        <Link href="/dashboard">Back to overview</Link>
       </Button>
     </section>
   );

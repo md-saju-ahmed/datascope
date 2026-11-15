@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type {
   Dataset,
@@ -56,9 +57,9 @@ export function Explorer({
   return (
     <section className="min-w-0 space-y-6">
       <header>
-        <a className="text-sm text-primary underline" href="/datasets">
+        <Link className="text-sm text-primary underline" href="/datasets">
           Dataset Library
-        </a>
+        </Link>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
@@ -72,12 +73,12 @@ export function Explorer({
               {metadata.effectivePermission} access
             </p>
           </div>
-          <a
+          <Link
             href={`/datasets/${datasetId}/fields`}
             className="text-sm text-primary underline"
           >
             Field information
-          </a>
+          </Link>
         </div>
       </header>
       {fields.currentData ? (

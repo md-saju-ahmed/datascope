@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -40,12 +41,12 @@ export function DataFailure({
         <Button onClick={retry} variant="outline">
           Try again
         </Button>
-        <a
+        <Link
           href="/datasets"
           className="inline-flex min-h-10 items-center text-primary underline"
         >
           Dataset Library
-        </a>
+        </Link>
       </div>
     </section>
   );

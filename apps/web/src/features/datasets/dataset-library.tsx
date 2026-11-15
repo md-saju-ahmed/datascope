@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { Database, ArrowRight } from 'lucide-react';
 import { useGetDatasetsQuery } from '@/store/api/datasets-api';
 import { useAppDispatch } from '@/store/hooks';
@@ -116,7 +117,7 @@ export function DatasetLibrary() {
                   </dl>
                   <div className="mt-auto flex flex-wrap items-center gap-4 border-t border-border pt-5">
                     <Button asChild>
-                      <a
+                      <Link
                         href={`/datasets/${dataset.id}/explore`}
                         onClick={() => {
                           dispatch(
@@ -128,14 +129,14 @@ export function DatasetLibrary() {
                       >
                         Explore dataset{' '}
                         <ArrowRight size={16} aria-hidden="true" />
-                      </a>
+                      </Link>
                     </Button>
-                    <a
+                    <Link
                       href={`/datasets/${dataset.id}/fields`}
                       className="inline-flex min-h-11 items-center text-sm text-primary underline"
                     >
                       View field information
-                    </a>
+                    </Link>
                   </div>
                 </article>
               ))}

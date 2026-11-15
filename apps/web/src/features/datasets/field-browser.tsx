@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import {
   useGetDatasetQuery,
   useGetFieldsQuery,
@@ -24,9 +25,9 @@ export function FieldBrowser({ datasetId }: { datasetId: string }) {
   if (!dataset.currentData || !fields.currentData) return <DataLoading />;
   return (
     <section className="space-y-6">
-      <a href="/datasets" className="text-sm text-primary underline">
+      <Link href="/datasets" className="text-sm text-primary underline">
         Back to Dataset Library
-      </a>
+      </Link>
       <h1 className="break-words text-2xl font-semibold">
         {dataset.currentData.data.name}: field information
       </h1>
@@ -57,12 +58,12 @@ export function FieldBrowser({ datasetId }: { datasetId: string }) {
             </article>
           ))}
       </div>
-      <a
+      <Link
         href={`/datasets/${datasetId}/explore`}
         className="inline-flex min-h-11 items-center text-primary underline"
       >
         Explore dataset
-      </a>
+      </Link>
     </section>
   );
 }

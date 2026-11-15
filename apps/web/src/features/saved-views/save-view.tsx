@@ -1,5 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
+import Link from 'next/link';
 import type { SearchRequest } from '@datascope/contracts';
 import { viewCreateSchema } from '@datascope/contracts';
 import { useCreateSavedViewMutation } from '@/store/api/views-api';
@@ -38,9 +39,9 @@ export function SaveView({
       {notice && (
         <p role="status" className="text-sm text-primary">
           {notice}{' '}
-          <a href="/saved-views" className="underline">
+          <Link href="/saved-views" className="underline">
             Manage saved views
-          </a>
+          </Link>
         </p>
       )}
     </div>

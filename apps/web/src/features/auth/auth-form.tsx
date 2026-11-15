@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import Link from 'next/link';
 import { ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import {
   loginRequestSchema,
@@ -98,9 +99,9 @@ export function AuthForm({
           access is managed by your administrator.
         </p>
         <Button asChild>
-          <a href={loginHref}>
+          <Link href={loginHref}>
             Continue to sign in <ArrowRight size={16} aria-hidden="true" />
-          </a>
+          </Link>
         </Button>
       </section>
     );
@@ -254,7 +255,7 @@ export function AuthForm({
         </p>
         <p className="text-center text-sm text-muted-foreground">
           {registration ? 'Already have an account?' : 'New to DataScope?'}{' '}
-          <a
+          <Link
             className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4"
             href={
               registration
@@ -263,7 +264,7 @@ export function AuthForm({
             }
           >
             {registration ? 'Sign in' : 'Create an account'}
-          </a>
+          </Link>
         </p>
       </form>
     </section>

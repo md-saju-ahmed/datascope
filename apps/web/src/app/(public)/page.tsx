@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Database, Filter, ShieldCheck } from 'lucide-react';
 export default function PublicEntry() {
@@ -25,12 +26,12 @@ export default function PublicEntry() {
       </p>
       <div className="flex flex-wrap gap-3">
         <Button asChild className="min-h-11">
-          <a href="/login">
+          <Link href="/login">
             Sign in <ArrowRight size={16} aria-hidden="true" />
-          </a>
+          </Link>
         </Button>
         <Button asChild variant="outline" className="min-h-11">
-          <a href="/register">Create Viewer account</a>
+          <Link href="/register">Create Viewer account</Link>
         </Button>
       </div>
       <div className="mt-14 grid gap-6 border-t border-border pt-8 sm:grid-cols-3">

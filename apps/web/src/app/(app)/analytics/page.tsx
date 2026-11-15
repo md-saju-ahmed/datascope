@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { analyticsQuerySchema, uuidParamSchema } from '@datascope/contracts';
 import { requireSession } from '@/lib/session';
 import { AccessDenied } from '@/components/layout/route-state';
@@ -17,9 +18,9 @@ export default async function Page({
       <section role="alert" className="space-y-4">
         <h1 className="text-2xl font-semibold">Invalid analytics selection</h1>
         <p>Choose a dataset and a window between 1 and 366 days.</p>
-        <a href="/analytics" className="text-primary underline">
+        <Link href="/analytics" className="text-primary underline">
           Reset analytics
-        </a>
+        </Link>
       </section>
     );
   return <Analytics datasetId={selection.data} days={window.data.days} />;

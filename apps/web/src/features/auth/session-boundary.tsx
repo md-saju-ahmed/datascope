@@ -9,6 +9,7 @@ import {
 import { authApi } from '@/store/api/auth-api';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { authSlice } from '@/store/slices/auth-slice';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { safeReturnPath, signInPath } from './navigation';
 
@@ -115,11 +116,11 @@ export function SessionBoundary({
         <h1 className="text-2xl font-semibold">Sign in required</h1>
         <p>Your session has ended. Sign in again to continue.</p>
         <Button asChild>
-          <a
+          <Link
             href={signInPath(window.location.pathname + window.location.search)}
           >
             Go to sign in
-          </a>
+          </Link>
         </Button>
       </main>
     );

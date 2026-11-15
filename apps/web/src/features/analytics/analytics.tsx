@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { skipToken } from '@reduxjs/toolkit/query';
 import {
@@ -266,12 +267,12 @@ function DatasetReport({
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h2 className="break-words text-xl font-semibold">{dataset.name}</h2>
-          <a
+          <Link
             href={`/datasets/${datasetId}/explore`}
             className="inline-flex min-h-11 items-center text-sm text-primary underline"
           >
             Explore data
-          </a>
+          </Link>
         </div>
         <Button
           variant="outline"

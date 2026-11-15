@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 export default function RouteError({
   reset,
@@ -19,7 +20,7 @@ export default function RouteError({
       <div className="flex flex-wrap gap-3">
         <Button onClick={reset}>Try again</Button>
         <Button asChild variant="outline">
-          <a href="/">Back to DataScope</a>
+          <Link href="/">Back to DataScope</Link>
         </Button>
       </div>
     </section>

@@ -1,6 +1,7 @@
 'use client';
 import { LogoutButton } from '@/features/auth/logout-button';
 import { useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Database,
@@ -55,12 +56,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     return (
       <main className="mx-auto max-w-xl p-8">
         <h1 className="text-2xl font-semibold">Sign in required</h1>
-        <a
+        <Link
           href="/login"
           className="mt-4 inline-flex min-h-10 items-center text-primary underline"
         >
           Go to sign in
-        </a>
+        </Link>
       </main>
     );
   const items = navigation.filter(
@@ -76,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       : 'Workspace');
   function links(list: typeof navigation) {
     return list.map(({ href, label, icon: Icon }) => (
-      <a
+      <Link
         key={href}
         href={
           href === '/search'
@@ -104,20 +105,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <Icon size={18} aria-hidden="true" />
         {label}
-      </a>
+      </Link>
     ));
   }
   const nav = (
     <nav aria-label="Main navigation" className="space-y-1">
       {links(items)}
       {user.role !== 'viewer' && (
-        <a
+        <Link
           href="/search?mode=advanced"
           className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm text-muted-foreground hover:bg-muted"
         >
           <SlidersHorizontal size={18} aria-hidden="true" />
           Advanced Search
-        </a>
+        </Link>
       )}
       {user.role === 'admin' && (
         <>
@@ -139,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
       <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r border-border bg-surface p-4 lg:flex">
-        <a
+        <Link
           href="/dashboard"
           className="mb-8 flex min-h-10 items-center gap-3 px-3 text-xl font-bold tracking-tight text-foreground transition-opacity hover:opacity-90"
         >
@@ -152,7 +153,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-hidden="true"
           />
           DataScope
-        </a>
+        </Link>
         {nav}
         <p className="mt-auto px-3 pt-8 text-xs leading-5 text-muted-foreground">
           Enterprise data discovery
@@ -222,9 +223,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </main>
         <footer className="px-4 py-6 text-xs text-muted-foreground sm:px-6">
-          <a className="inline-flex min-h-10 items-center gap-1" href="/">
+          <Link className="inline-flex min-h-10 items-center gap-1" href="/">
             DataScope <ArrowUpRight size={14} aria-hidden="true" />
-          </a>
+          </Link>
         </footer>
       </div>
     </div>

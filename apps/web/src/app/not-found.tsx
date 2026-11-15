@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function NotFound() {
   return (
     <main className="mx-auto max-w-xl p-8">
@@ -5,9 +7,9 @@ export default function NotFound() {
       <p className="my-4 text-muted-foreground">
         This address is not available.
       </p>
-      <a href="/" className="text-primary underline">
+      <Link href="/" className="text-primary underline">
         Back to DataScope
-      </a>
+      </Link>
     </main>
   );
 }
