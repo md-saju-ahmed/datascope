@@ -93,8 +93,12 @@ test('FE13 short desktop and mobile keyboard navigation, skip link, modal trap/r
       .evaluate((node) => getComputedStyle(node).overflowY),
   ).toBe('auto');
   await page.goto('/settings');
-  await page.keyboard.press('Tab');
+  await expect(page.locator('main h1')).toBeVisible();
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
   const skip = page.getByRole('link', { name: 'Skip to content' });
+  await page.keyboard.press('Tab');
   await expect(skip).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#main-content')).toBeFocused();

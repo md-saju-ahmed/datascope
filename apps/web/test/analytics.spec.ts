@@ -402,12 +402,12 @@ test('FE10 loading, initial error retry, stale background failure, focus refresh
   await expect(
     page.getByRole('status', { name: 'Loading analytics', exact: true }),
   ).toBeVisible();
-  mode = 'fail';
   release();
   // The held successful request is real; fail a subsequent refresh.
   await expect(
     page.getByRole('region', { name: 'Total records', exact: true }),
   ).toContainText('100,000');
+  mode = 'fail';
   await page
     .getByRole('button', { name: 'Refresh analytics', exact: true })
     .click();
