@@ -420,9 +420,9 @@ try {
     assert.equal(await page.locator('tbody tr').count(), 25);
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 900 });
-      // eslint-disable-next-line no-undef
       assert(
         await page.evaluate(
+          // eslint-disable-next-line no-undef
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
       );

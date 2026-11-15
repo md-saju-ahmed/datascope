@@ -29,6 +29,7 @@
     "benchmark:backend": "node --env-file-if-exists=.env scripts/benchmark-backend.mjs",
     "docs:api": "node scripts/generate-openapi.mjs",
     "verify:backend": "pnpm build && pnpm lint && pnpm typecheck && pnpm format:check && pnpm test && pnpm test:integration && pnpm smoke:db && pnpm docs:api",
+    "verify:ci": "node scripts/verify-ci.mjs",
     "db:generate": "pnpm --filter @datascope/db db:generate",
     "db:check": "pnpm --filter @datascope/db db:check",
     "db:migrate": "pnpm --filter @datascope/db db:migrate",

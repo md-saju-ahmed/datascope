@@ -1,0 +1,164 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Code Quality & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.18.0
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint check
+        run: pnpm lint
+
+      - name: Code formatting check
+        run: pnpm format:check
+
+      - name: TypeScript typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+  integration:
+    name: PostgreSQL Integration & API Tests
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.18.0
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Initialize test environment configuration
+        run: pnpm env:init
+
+      - name: Build contracts and database packages
+        run: pnpm --filter @datascope/contracts build && pnpm --filter @datascope/db build
+
+      - name: Start isolated PostgreSQL test service
+        run: pnpm db:test:up
+
+      - name: Install PostgreSQL extensions on test database
+        run: pnpm db:extensions:test
+
+      - name: Apply schema migrations to test database
+        run: pnpm db:migrate:test
+
+      - name: Run PostgreSQL integration and Supertest API suites
+        run: pnpm test:integration
+
+      - name: Tear down test database containers
+        if: always()
+        run: docker compose --profile test down -v
+
+  build:
+    name: Application Builds & Production Docker Images
+    runs-on: ubuntu-latest
+    needs: [quality, integration]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.18.0
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application packages
+        run: pnpm build
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API production Docker image
+        run: docker build -f apps/api/Dockerfile -t datascope-api:${{ github.sha }} .
+
+      - name: Build Web production Docker image
+        run: docker build -f apps/web/Dockerfile -t datascope-web:${{ github.sha }} .
+
+  deploy:
+    name: Production Deployment (Authorized Release)
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.18.0
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Execute authorized deployment procedure
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+          PROD_POSTGRES_ADMIN_PASSWORD: ${{ secrets.PROD_POSTGRES_ADMIN_PASSWORD }}
+          PROD_APP_DB_PASSWORD: ${{ secrets.PROD_APP_DB_PASSWORD }}
+        run: node scripts/deploy.mjs
