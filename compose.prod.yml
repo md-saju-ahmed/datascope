@@ -1,0 +1,118 @@
+# Standalone file. Never combine with compose.yml (which publishes local DB ports).
+x-logging: &logging
+  driver: json-file
+  options: { max-size: '10m', max-file: '3' }
+x-api-environment: &api-environment
+  NODE_ENV: production
+  API_HOST: 0.0.0.0
+  PORT: '4000'
+  APP_ORIGIN: ${APP_ORIGIN:?Set the exact public HTTPS origin}
+  DATABASE_URL: postgresql://datascope_app:${PROD_APP_DB_PASSWORD:?Set URL-safe app password}@postgres:5432/datascope
+
+services:
+  postgres:
+    image: postgres:17.12-alpine3.23
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: datascope_admin
+      POSTGRES_DB: datascope
+      POSTGRES_PASSWORD: ${PROD_POSTGRES_ADMIN_PASSWORD:?Set admin password}
+      APP_DB_USER: datascope_app
+      APP_DB_PASSWORD: ${PROD_APP_DB_PASSWORD:?Set URL-safe app password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-app-role.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+      - ./infra/postgres/init-production-extensions.sh:/docker-entrypoint-initdb.d/20-extensions.sh:ro
+    networks: [database]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U datascope_admin -d datascope']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  api:
+    image: ${API_IMAGE:?Set an immutable API image tag or digest}
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    environment: *api-environment
+    restart: unless-stopped
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on: { postgres: { condition: service_healthy } }
+    networks: [database, application]
+    logging: *logging
+
+  web:
+    image: ${WEB_IMAGE:?Set an immutable web image tag or digest}
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    environment:
+      API_INTERNAL_ORIGIN: http://api:4000
+      API_SESSION_COOKIE_NAME: __Host-datascope_session
+    restart: unless-stopped
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on: { api: { condition: service_healthy } }
+    networks: [application]
+    logging: *logging
+
+  nginx:
+    image: nginx:1.28.0-alpine
+    restart: unless-stopped
+    ports:
+      - '${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:80'
+      - '${HTTPS_BIND:-0.0.0.0}:${HTTPS_PORT:-443}:443'
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TLS_DIR:?Set directory with fullchain.pem and privkey.pem}:/etc/nginx/tls:ro
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+    networks: [application, ingress]
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -q --no-check-certificate -O /dev/null https://127.0.0.1/api/v1/health/ready',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+
+  migrate:
+    image: ${API_IMAGE:?Set an immutable API image tag or digest}
+    profiles: [ops]
+    environment:
+      <<: *api-environment
+      DATASCOPE_MIGRATION_APPROVED: ${DATASCOPE_MIGRATION_APPROVED:-false}
+    command: ['node', 'ops/migrate-production.mjs']
+    depends_on: { postgres: { condition: service_healthy } }
+    networks: [database]
+    restart: 'no'
+    logging: *logging
+
+  backup:
+    image: postgres:17.12-alpine3.23
+    profiles: [ops]
+    environment:
+      PGHOST: postgres
+      PGUSER: datascope_admin
+      PGDATABASE: datascope
+      PGPASSWORD: ${PROD_POSTGRES_ADMIN_PASSWORD:?Set admin password}
+    entrypoint: ['/bin/sh', '/ops/backup.sh']
+    volumes:
+      - ./infra/scripts/backup.sh:/ops/backup.sh:ro
+      - ${BACKUP_DIR:?Set private backup directory}:/backups
+    depends_on: { postgres: { condition: service_healthy } }
+    networks: [database]
+    restart: 'no'
+    logging: *logging
+
+volumes:
+  postgres_data:
+networks:
+  database: { internal: true }
+  application: { internal: true }
+  ingress:
