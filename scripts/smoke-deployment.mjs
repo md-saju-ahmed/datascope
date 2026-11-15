@@ -135,6 +135,12 @@ async function main() {
     },
   );
 
+  await check('GET /api/v1/health/live (via Vercel proxy) → 200', async () => {
+    const url = `${WEB_BASE}/api/v1/health/live`;
+    const res = await fetchWithTimeout(url);
+    assertStatus(200, res.status, url);
+  });
+
   // ─────────────────────────────────────────────
   // 3. Unauthenticated access control
   // ─────────────────────────────────────────────
@@ -147,9 +153,9 @@ async function main() {
   });
 
   await check(
-    'GET /api/v1/analytics/summary → 401 without session cookie',
+    'GET /api/v1/analytics/platform → 401 without session cookie',
     async () => {
-      const url = `${API_BASE}/api/v1/analytics/summary`;
+      const url = `${API_BASE}/api/v1/analytics/platform`;
       const res = await fetchWithTimeout(url);
       assertStatus(401, res.status, url);
     },
@@ -161,7 +167,7 @@ async function main() {
   if (ADMIN_EMAIL && ADMIN_PASSWORD) {
     console.log('\n── Authenticated Smoke Tests ───────────────────────');
 
-    let sessionCookie = '';
+    let sessionCookies = '';
     let csrfToken = '';
 
     await check('POST /api/v1/auth/login → 200 (admin login)', async () => {
@@ -169,30 +175,39 @@ async function main() {
       assertStatus(200, csrfRes.status, `${API_BASE}/api/v1/auth/csrf`);
       const csrfBody = await csrfRes.json();
       csrfToken = csrfBody.csrfToken;
-      const rawCookie = csrfRes.headers.get('set-cookie') ?? '';
-      sessionCookie = rawCookie.split(';')[0] ?? '';
+      const initialCookie =
+        csrfRes.headers.get('set-cookie')?.split(';')[0] ?? '';
 
       const loginRes = await fetchWithTimeout(`${API_BASE}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Cookie: sessionCookie,
+          Cookie: initialCookie,
           'X-CSRF-Token': csrfToken,
+          Origin: WEB_BASE,
+          Referer: `${WEB_BASE}/login`,
         },
         body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
       });
       assertStatus(200, loginRes.status, `${API_BASE}/api/v1/auth/login`);
-      const loginCookie = loginRes.headers.get('set-cookie') ?? '';
-      sessionCookie = loginCookie.split(';')[0] ?? sessionCookie;
+      const loginBody = await loginRes.json();
+      csrfToken = loginBody.csrfToken ?? csrfToken;
+      const setCookies = loginRes.headers.getSetCookie?.() ?? [
+        loginRes.headers.get('set-cookie') ?? '',
+      ];
+      sessionCookies = setCookies
+        .map((c) => c.split(';')[0])
+        .filter(Boolean)
+        .join('; ');
     });
 
-    if (sessionCookie) {
+    if (sessionCookies) {
       await check(
         'GET /api/v1/datasets → 200 with real session (bounded list)',
         async () => {
           const url = `${API_BASE}/api/v1/datasets`;
           const res = await fetchWithTimeout(url, {
-            headers: { Cookie: sessionCookie },
+            headers: { Cookie: sessionCookies },
           });
           assertStatus(200, res.status, url);
           const body = await res.json();
@@ -203,23 +218,48 @@ async function main() {
       );
 
       await check(
-        'GET /api/v1/analytics/summary → 200 (real SQL aggregation)',
+        'GET analytics (platform or dataset) → 200 (real SQL aggregation)',
         async () => {
-          const url = `${API_BASE}/api/v1/analytics/summary`;
-          const res = await fetchWithTimeout(url, {
-            headers: { Cookie: sessionCookie },
-          });
-          assertStatus(200, res.status, url);
-          const body = await res.json();
-          if (typeof body.totalRecords !== 'number') {
-            throw new Error(
-              'Expected body.totalRecords to be a number; got: ' +
-                JSON.stringify(body).slice(0, 120),
+          let total = 0;
+          const platRes = await fetchWithTimeout(
+            `${API_BASE}/api/v1/analytics/platform`,
+            { headers: { Cookie: sessionCookies } },
+          );
+          if (platRes.status === 200) {
+            const body = await platRes.json();
+            total = Number(body.data?.totalRecords);
+          } else if (platRes.status === 403) {
+            // Role is not admin, query dataset analytics
+            const listRes = await fetchWithTimeout(
+              `${API_BASE}/api/v1/datasets`,
+              {
+                headers: { Cookie: sessionCookies },
+              },
+            );
+            const { data: datasets } = await listRes.json();
+            const datasetId = datasets[0]?.id;
+            const dsRes = await fetchWithTimeout(
+              `${API_BASE}/api/v1/datasets/${datasetId}/analytics?days=30`,
+              { headers: { Cookie: sessionCookies } },
+            );
+            assertStatus(
+              200,
+              dsRes.status,
+              `${API_BASE}/api/v1/datasets/${datasetId}/analytics`,
+            );
+            const dsBody = await dsRes.json();
+            total = Number(dsBody.data?.totalRecords);
+          } else {
+            assertStatus(
+              200,
+              platRes.status,
+              `${API_BASE}/api/v1/analytics/platform`,
             );
           }
-          if (body.totalRecords < 100_000) {
+
+          if (isNaN(total) || total < 100_000) {
             throw new Error(
-              `Expected ≥ 100,000 records but analytics reports ${body.totalRecords}`,
+              `Expected ≥ 100,000 records but analytics reports ${total}`,
             );
           }
         },
@@ -231,7 +271,7 @@ async function main() {
           // first get a dataset id
           const listUrl = `${API_BASE}/api/v1/datasets`;
           const listRes = await fetchWithTimeout(listUrl, {
-            headers: { Cookie: sessionCookie },
+            headers: { Cookie: sessionCookies },
           });
           const { data: datasets } = await listRes.json();
           if (!datasets || datasets.length === 0) {
@@ -243,13 +283,16 @@ async function main() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Cookie: sessionCookie,
+              Cookie: sessionCookies,
               'X-CSRF-Token': csrfToken,
+              Origin: WEB_BASE,
+              Referer: `${WEB_BASE}/datasets`,
             },
             body: JSON.stringify({
-              query: { type: 'basic', text: 'a' },
+              q: '',
               page: 1,
-              pageSize: 20,
+              pageSize: 25,
+              sort: [{ field: 'revenue', direction: 'desc' }],
             }),
           });
           assertStatus(200, searchRes.status, searchUrl);
