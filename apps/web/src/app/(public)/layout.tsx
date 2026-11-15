@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   return (
@@ -39,6 +40,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
             <Button asChild className="min-h-9 px-3">
               <Link href="/register">Sign up</Link>
             </Button>
+            <ThemeToggle />
           </nav>
         </div>
       </header>

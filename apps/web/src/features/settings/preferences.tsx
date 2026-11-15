@@ -16,6 +16,7 @@ import { DatasetPicker } from '@/features/datasets/dataset-picker';
 import { Button } from '@/components/ui/button';
 import { FormDialog } from '@/components/ui/form-dialog';
 import { ActionForm, control } from './form-support';
+import { ThemeSelector } from '@/components/layout/theme-toggle';
 
 export function PreferencesBridge() {
   const dispatch = useAppDispatch();
@@ -54,6 +55,15 @@ export function Settings() {
           <dd>{user?.role}</dd>
         </div>
       </dl>
+      <div className="rounded-xl border border-border bg-surface p-5 text-sm">
+        <h2 className="text-base font-semibold">Appearance</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Choose between light mode, dark mode, or system theme preference.
+        </p>
+        <div className="mt-4">
+          <ThemeSelector />
+        </div>
+      </div>
       {message && <p role="status">{message}</p>}
       {result.isError ? (
         <DataFailure

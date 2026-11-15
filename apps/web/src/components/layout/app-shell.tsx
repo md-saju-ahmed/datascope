@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { PreferencesBridge } from '@/features/settings/preferences';
+import { ThemeToggle } from './theme-toggle';
 
 const navigation = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -200,7 +201,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="text-sm font-medium">{current}</span>
             </div>
           </div>
-          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-4">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3 sm:gap-4">
+            <ThemeToggle />
             <div className="text-right">
               <p
                 className="max-w-52 truncate text-sm font-medium"
