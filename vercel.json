@@ -3,7 +3,6 @@
   "framework": "nextjs",
   "installCommand": "npm install -g pnpm@12.18.0 && pnpm install --frozen-lockfile --engine-strict=false",
   "buildCommand": "pnpm --filter @datascope/contracts build && pnpm --filter @datascope/db build && pnpm --filter @datascope/web build",
-  "outputDirectory": "apps/web/.next",
   "headers": [
     {
       "source": "/(.*)",
