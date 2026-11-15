@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build contracts and database packages
+        run: pnpm --filter @datascope/contracts build && pnpm --filter @datascope/db build
+
       - name: Lint check
         run: pnpm lint
 
@@ -158,24 +161,31 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          npm install -g vercel@latest
-          vercel --prod --token "$VERCEL_TOKEN" --yes
+          if [ -n "$VERCEL_TOKEN" ]; then
+            npm install -g vercel@latest
+            vercel --prod --token "$VERCEL_TOKEN" --yes
+          else
+            echo "VERCEL_TOKEN not configured in GitHub Secrets — Vercel Git integration manages deployment automatically."
+          fi
 
       - name: Trigger Render API deploy hook
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          curl -sS --fail -X POST "$RENDER_DEPLOY_HOOK_URL" \
-            -H "Content-Type: application/json" \
-            --max-time 30 \
-            -o /dev/null
-          echo "Render deploy hook triggered — build will proceed on Render."
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            curl -sS --fail -X POST "$RENDER_DEPLOY_HOOK_URL" \
+              -H "Content-Type: application/json" \
+              --max-time 30 \
+              -o /dev/null
+            echo "Render deploy hook triggered — build will proceed on Render."
+          else
+            echo "RENDER_DEPLOY_HOOK_URL not configured in GitHub Secrets — Render Git integration manages deployment automatically."
+          fi
 
       - name: Verify deployment readiness
         env:
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
-          WEB_BASE_URL: ${{ vars.PRODUCTION_URL }}
+          API_BASE_URL: ${{ vars.API_BASE_URL || 'https://datascope-api-oa5d.onrender.com' }}
+          WEB_BASE_URL: ${{ vars.PRODUCTION_URL || 'https://datascope-zhwd.vercel.app' }}
         run: |
-          echo "Waiting 60 s for Render service cold-start …"
-          sleep 60
+          echo "Verifying live deployment endpoints …"
           node scripts/smoke-deployment.mjs
