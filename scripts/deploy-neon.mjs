@@ -19,7 +19,10 @@
  */
 
 import { execSync } from 'node:child_process';
-import pg from 'pg';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const pg = require('../packages/db/node_modules/pg');
 
 const { Client } = pg;
 
@@ -74,7 +77,7 @@ async function checkExtensions() {
 async function checkRowCount() {
   step('Verifying minimum seed row count (≥ 100,000 records) …');
   const result = await client.query(
-    "SELECT COUNT(*) AS cnt FROM records WHERE dataset_id NOT IN (SELECT id FROM datasets WHERE slug = 'restricted')",
+    "SELECT COUNT(*) AS cnt FROM dataset_records WHERE dataset_id NOT IN (SELECT id FROM datasets WHERE slug = 'restricted')",
   );
   const count = parseInt(result.rows[0].cnt, 10);
   if (count >= 100_000) {
