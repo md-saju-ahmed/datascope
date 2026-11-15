@@ -77,7 +77,10 @@ async function reconcile(data: AnalyticsData, userId?: string) {
       expect(breakdown.buckets).toEqual(rows.rows);
       expect(
         BigInt(breakdown.otherCount) +
-          rows.rows.reduce((sum, row) => sum + BigInt(row.count), 0n),
+          rows.rows.reduce(
+            (sum: bigint, row: { count: string }) => sum + BigInt(row.count),
+            0n,
+          ),
       ).toBe(BigInt(data.totalRecords));
     }
     const activity = data.searchActivity;
