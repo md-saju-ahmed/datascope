@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { Inter } from 'next/font/google';
 import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
+
 export const metadata: Metadata = {
   title: { default: 'DataScope', template: '%s | DataScope' },
   description: 'Enterprise data discovery workspace',
@@ -16,11 +24,11 @@ const themeScript = `(function(){try{var t=localStorage.getItem('datascope-theme
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }
