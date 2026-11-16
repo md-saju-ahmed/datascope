@@ -74,18 +74,7 @@ export function Footer({
         )}
       >
         {/* Left side: Copyright notice */}
-        <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:justify-start sm:text-left">
-          <img
-            src="/logo.svg"
-            alt=""
-            width={18}
-            height={18}
-            className="h-4.5 w-4.5"
-          />
-          <span className="font-semibold text-foreground">DataScope</span>
-          <span className="text-muted-foreground/60" aria-hidden="true">
-            &bull;
-          </span>
+        <div className="text-center sm:text-left">
           <span>&copy; {new Date().getFullYear()} DataScope. All rights reserved.</span>
         </div>
 
