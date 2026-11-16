@@ -32,7 +32,6 @@ export function AuthForm({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [pendingRole, setPendingRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (failure) summary.current?.focus();
@@ -47,27 +46,6 @@ export function AuthForm({
     setPassword(account.password);
     setErrors({});
     setFailure('');
-  }
-
-  async function handleQuickLogin(account: DemoAccount) {
-    setEmail(account.email);
-    setPassword(account.password);
-    setErrors({});
-    setFailure('');
-    if (busy.current) return;
-    busy.current = true;
-    setPending(true);
-    setPendingRole(account.id);
-    try {
-      await login({ email: account.email, password: account.password }).unwrap();
-      window.location.replace(destination);
-    } catch (error) {
-      setFailure(authError(error, false));
-    } finally {
-      busy.current = false;
-      setPending(false);
-      setPendingRole(null);
-    }
   }
 
   async function submit(event: SubmitEvent<HTMLFormElement>) {
@@ -142,10 +120,12 @@ export function AuthForm({
     return (
       <section
         aria-labelledby="created-title"
-        className="rounded-xl border border-border bg-surface p-6 sm:p-10"
+        className="rounded-2xl border border-border bg-surface p-6 sm:p-10 shadow-xl shadow-black/5"
       >
-        <ShieldCheck className="mb-5 text-primary" aria-hidden="true" />
-        <h1 id="created-title" className="text-2xl font-semibold">
+        <div className="mb-5 flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <ShieldCheck className="size-6 text-primary" aria-hidden="true" />
+        </div>
+        <h1 id="created-title" className="text-2xl font-bold tracking-tight">
           Account created
         </h1>
         <p role="status" className="my-5 leading-7 text-muted-foreground">
@@ -161,27 +141,30 @@ export function AuthForm({
     );
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-      <div className="border-b border-border bg-muted/40 p-6 sm:px-10 sm:py-8">
-        <div className="mb-4 flex items-center gap-3">
-          <img
-            src="/logo.svg"
-            alt=""
-            width={32}
-            height={32}
-            className="h-8 w-8"
-            aria-hidden="true"
-          />
-          <span className="text-xl font-bold tracking-tight">DataScope</span>
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xl shadow-black/5">
+      <div className="border-b border-border bg-muted/30 p-6 sm:p-8">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
           {registration ? 'Create your account' : 'Sign in to DataScope'}
         </h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          {registration
-            ? 'Start with Viewer access. Your administrator manages roles and dataset permissions.'
-            : 'Pick up where you left off. Your workspace follows your permissions.'}
-        </p>
+        {registration ? (
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-primary/25 bg-primary/5 p-3.5 text-xs leading-relaxed text-foreground">
+            <ShieldCheck
+              className="mt-0.5 size-4 shrink-0 text-primary"
+              aria-hidden="true"
+            />
+            <div>
+              <span className="font-semibold text-primary">Role Notice:</span>{' '}
+              <span>
+                Start with Viewer access. Your administrator manages roles and
+                dataset permissions.
+              </span>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Pick up where you left off. Your workspace follows your permissions.
+          </p>
+        )}
       </div>
 
       <form
@@ -190,14 +173,14 @@ export function AuthForm({
           void submit(event);
         }}
         aria-busy={pending}
-        className="space-y-5 p-6 sm:p-10"
+        className="space-y-5 p-6 sm:p-8"
       >
         {failure && (
           <div
             ref={summary}
             role="alert"
             tabIndex={-1}
-            className="rounded-md border border-destructive p-3 text-sm text-destructive"
+            className="rounded-lg border border-destructive/30 bg-destructive/10 p-3.5 text-sm font-medium text-destructive"
           >
             {failure}
           </div>
@@ -207,16 +190,14 @@ export function AuthForm({
           <>
             <DemoCredentials
               onFill={handleFillDemo}
-              onQuickLogin={handleQuickLogin}
               disabled={pending}
-              pendingQuickLoginRole={pendingRole}
             />
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-surface px-2 text-muted-foreground">
+                <span className="bg-surface px-3 font-medium text-muted-foreground">
                   Or sign in manually
                 </span>
               </div>
@@ -224,9 +205,9 @@ export function AuthForm({
           </>
         )}
 
-        <fieldset disabled={pending} className="space-y-5">
+        <fieldset disabled={pending} className="space-y-4">
           <div>
-            <label htmlFor="email" className="text-sm font-medium">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground">
               Email address
             </label>
             <input
@@ -237,22 +218,24 @@ export function AuthForm({
               maxLength={254}
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+              }}
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? 'email-error' : undefined}
-              className="mt-2 block min-h-11 w-full rounded-md border border-border bg-surface px-3 text-base"
+              className="mt-1.5 block min-h-10 w-full rounded-lg border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground shadow-xs transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
             {errors.email && (
-              <p id="email-error" className="mt-2 text-sm text-destructive">
+              <p id="email-error" className="mt-1.5 text-xs font-medium text-destructive">
                 {errors.email}
               </p>
             )}
           </div>
           <div>
-            <label htmlFor="password" className="text-sm font-medium">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground">
               Password
             </label>
-            <div className="relative mt-2">
+            <div className="relative mt-1.5">
               <input
                 id="password"
                 name="password"
@@ -262,10 +245,12 @@ export function AuthForm({
                 }
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                }}
                 aria-invalid={!!errors.password}
                 aria-describedby="password-help password-error"
-                className="block min-h-11 w-full rounded-md border border-border bg-surface pl-3 pr-14 text-base"
+                className="block min-h-10 w-full rounded-lg border border-border bg-background pl-3.5 pr-11 text-sm text-foreground placeholder:text-muted-foreground shadow-xs transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <button
                 type="button"
@@ -274,30 +259,32 @@ export function AuthForm({
                 onClick={() => {
                   setVisible(!visible);
                 }}
-                className="absolute right-0 top-0 flex size-11 cursor-pointer items-center justify-center"
+                className="absolute right-0 top-0 flex size-10 cursor-pointer items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               >
                 {visible ? (
-                  <EyeOff size={18} aria-hidden="true" />
+                  <EyeOff size={16} aria-hidden="true" />
                 ) : (
-                  <Eye size={18} aria-hidden="true" />
+                  <Eye size={16} aria-hidden="true" />
                 )}
               </button>
             </div>
             <p
               id="password-help"
-              className="mt-2 text-xs leading-5 text-muted-foreground"
+              className="mt-1.5 text-xs leading-normal text-muted-foreground"
             >
               {registration
                 ? 'At least 16 characters; at most 128 UTF-8 bytes. Spaces and pasted passwords are welcome.'
                 : 'Use your account password. Password managers and paste are supported.'}
             </p>
-            <p id="password-error" className="mt-2 text-sm text-destructive">
-              {errors.password}
-            </p>
+            {errors.password && (
+              <p id="password-error" className="mt-1.5 text-xs font-medium text-destructive">
+                {errors.password}
+              </p>
+            )}
           </div>
           {registration && (
             <div>
-              <label htmlFor="confirm" className="text-sm font-medium">
+              <label htmlFor="confirm" className="block text-sm font-medium text-foreground">
                 Confirm password
               </label>
               <input
@@ -307,13 +294,15 @@ export function AuthForm({
                 autoComplete="new-password"
                 required
                 value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
+                onChange={(e) => {
+                  setConfirm(e.target.value);
+                }}
                 aria-invalid={!!errors.confirm}
                 aria-describedby={errors.confirm ? 'confirm-error' : undefined}
-                className="mt-2 block min-h-11 w-full rounded-md border border-border bg-surface px-3 text-base"
+                className="mt-1.5 block min-h-10 w-full rounded-lg border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground shadow-xs transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {errors.confirm && (
-                <p id="confirm-error" className="mt-2 text-sm text-destructive">
+                <p id="confirm-error" className="mt-1.5 text-xs font-medium text-destructive">
                   {errors.confirm}
                 </p>
               )}
@@ -323,7 +312,7 @@ export function AuthForm({
         <Button
           type="submit"
           disabled={pending}
-          className="min-h-11 w-full cursor-pointer"
+          className="min-h-11 w-full cursor-pointer rounded-lg bg-primary font-medium text-primary-foreground shadow-xs hover:bg-primary/90 transition-colors"
         >
           {pending
             ? registration
@@ -340,7 +329,7 @@ export function AuthForm({
         <p className="text-center text-sm text-muted-foreground">
           {registration ? 'Already have an account?' : 'New to DataScope?'}{' '}
           <Link
-            className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4"
+            className="inline-flex min-h-11 items-center font-medium text-primary hover:underline underline-offset-4"
             href={
               registration
                 ? loginHref
