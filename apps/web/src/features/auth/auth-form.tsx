@@ -10,6 +10,10 @@ import { useLoginMutation, useRegisterMutation } from '@/store/api/auth-api';
 import { Button } from '@/components/ui/button';
 import { safeReturnPath } from './navigation';
 import { authError } from './errors';
+import {
+  DemoCredentials,
+  type DemoAccount,
+} from './demo-credentials';
 
 export function AuthForm({
   registration,
@@ -25,6 +29,11 @@ export function AuthForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState('');
   const [created, setCreated] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [pendingRole, setPendingRole] = useState<string | null>(null);
+
   useEffect(() => {
     if (failure) summary.current?.focus();
   }, [failure]);
@@ -32,17 +41,58 @@ export function AuthForm({
   const summary = useRef<HTMLDivElement>(null);
   const destination = safeReturnPath(returnTo);
   const loginHref = `/login?returnTo=${encodeURIComponent(destination)}`;
+
+  function handleFillDemo(account: DemoAccount) {
+    setEmail(account.email);
+    setPassword(account.password);
+    setErrors({});
+    setFailure('');
+  }
+
+  async function handleQuickLogin(account: DemoAccount) {
+    setEmail(account.email);
+    setPassword(account.password);
+    setErrors({});
+    setFailure('');
+    if (busy.current) return;
+    busy.current = true;
+    setPending(true);
+    setPendingRole(account.id);
+    try {
+      await login({ email: account.email, password: account.password }).unwrap();
+      window.location.replace(destination);
+    } catch (error) {
+      setFailure(authError(error, false));
+    } finally {
+      busy.current = false;
+      setPending(false);
+      setPendingRole(null);
+    }
+  }
+
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy.current) return;
     const form = event.currentTarget;
     const values = new FormData(form);
-    const email = values.get('email');
-    const password = values.get('password');
+    const formEmail = values.get('email');
+    const formPassword = values.get('password');
+    const formConfirm = values.get('confirm');
     const input = {
-      email: typeof email === 'string' ? email : '',
-      password: typeof password === 'string' ? password : '',
+      email:
+        typeof formEmail === 'string' && formEmail.length > 0
+          ? formEmail
+          : email,
+      password:
+        typeof formPassword === 'string' && formPassword.length > 0
+          ? formPassword
+          : password,
     };
+    const confirmValue =
+      typeof formConfirm === 'string' && formConfirm.length > 0
+        ? formConfirm
+        : confirm;
+
     const parsed = (
       registration ? registerRequestSchema : loginRequestSchema
     ).safeParse(input);
@@ -57,7 +107,7 @@ export function AuthForm({
               ? 'Use at least 16 characters and at most 128 UTF-8 bytes.'
               : 'Enter your password (at most 128 UTF-8 bytes).';
       }
-    if (registration && input.password !== values.get('confirm'))
+    if (registration && input.password !== confirmValue)
       fields.confirm = 'Passwords must match.';
     setErrors(fields);
     setFailure('');
@@ -72,6 +122,9 @@ export function AuthForm({
       if (registration) {
         await register(parsed.data).unwrap();
         form.reset();
+        setEmail('');
+        setPassword('');
+        setConfirm('');
         setCreated(true);
       } else {
         await login(parsed.data).unwrap();
@@ -84,6 +137,7 @@ export function AuthForm({
       setPending(false);
     }
   }
+
   if (created)
     return (
       <section
@@ -105,6 +159,7 @@ export function AuthForm({
         </Button>
       </section>
     );
+
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="border-b border-border bg-muted/40 p-6 sm:px-10 sm:py-8">
@@ -128,6 +183,7 @@ export function AuthForm({
             : 'Pick up where you left off. Your workspace follows your permissions.'}
         </p>
       </div>
+
       <form
         noValidate
         onSubmit={(event) => {
@@ -146,6 +202,28 @@ export function AuthForm({
             {failure}
           </div>
         )}
+
+        {!registration && (
+          <>
+            <DemoCredentials
+              onFill={handleFillDemo}
+              onQuickLogin={handleQuickLogin}
+              disabled={pending}
+              pendingQuickLoginRole={pendingRole}
+            />
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-surface px-2 text-muted-foreground">
+                  Or sign in manually
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+
         <fieldset disabled={pending} className="space-y-5">
           <div>
             <label htmlFor="email" className="text-sm font-medium">
@@ -158,6 +236,8 @@ export function AuthForm({
               autoComplete="email"
               maxLength={254}
               required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? 'email-error' : undefined}
               className="mt-2 block min-h-11 w-full rounded-md border border-border bg-surface px-3 text-base"
@@ -181,6 +261,8 @@ export function AuthForm({
                   registration ? 'new-password' : 'current-password'
                 }
                 required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 aria-invalid={!!errors.password}
                 aria-describedby="password-help password-error"
                 className="block min-h-11 w-full rounded-md border border-border bg-surface pl-3 pr-14 text-base"
@@ -224,6 +306,8 @@ export function AuthForm({
                 type={visible ? 'text' : 'password'}
                 autoComplete="new-password"
                 required
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
                 aria-invalid={!!errors.confirm}
                 aria-describedby={errors.confirm ? 'confirm-error' : undefined}
                 className="mt-2 block min-h-11 w-full rounded-md border border-border bg-surface px-3 text-base"

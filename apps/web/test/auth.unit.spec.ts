@@ -1,6 +1,10 @@
 import { safeReturnPath, signInPath } from '../src/features/auth/navigation.ts';
 import { authError } from '../src/features/auth/errors.ts';
 import {
+  DEMO_ACCOUNTS,
+  type DemoAccount,
+} from '../src/features/auth/demo-accounts.ts';
+import {
   registerRequestSchema,
   loginRequestSchema,
 } from '@datascope/contracts';
@@ -65,4 +69,23 @@ test('errors are actionable and never echo server content', () => {
   ).not.toContain('private');
   expect(authError({ status: 429 })).toContain('Wait');
   expect(authError({ status: 409 }, true)).toContain('signing in');
+});
+test('demo accounts cover analyst, admin, and viewer roles with valid login credentials', () => {
+  expect(DEMO_ACCOUNTS).toHaveLength(3);
+  const roles = DEMO_ACCOUNTS.map((a: DemoAccount) => a.id);
+  expect(roles).toEqual(['analyst', 'admin', 'viewer']);
+
+  for (const account of DEMO_ACCOUNTS) {
+    expect(account.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+    expect(account.password.length).toBeGreaterThanOrEqual(16);
+    expect(Buffer.byteLength(account.password, 'utf8')).toBeLessThanOrEqual(128);
+    expect(account.badge).toBeTruthy();
+    expect(account.description).toBeTruthy();
+    expect(
+      loginRequestSchema.safeParse({
+        email: account.email,
+        password: account.password,
+      }).success,
+    ).toBe(true);
+  }
 });
