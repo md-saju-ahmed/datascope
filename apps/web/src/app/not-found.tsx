@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Compass, Home, Database, ArrowLeft, Search } from 'lucide-react';
+import { Compass, Home, Database, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 
