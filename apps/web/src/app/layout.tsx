@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     apple: '/favicon.svg',
   },
 };
-const themeScript = `(function(){try{var t=localStorage.getItem('datascope-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(!t&&d)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})()`;
+const themeScript = `(function(){try{var t=localStorage.getItem('datascope-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var isDark=t==='dark'||(!t&&d);var cl=document.documentElement.classList;if(isDark){cl.add('dark');cl.remove('light')}else{cl.remove('dark');cl.add('light')}document.documentElement.style.colorScheme=isDark?'dark':'light'}catch(e){}})()`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

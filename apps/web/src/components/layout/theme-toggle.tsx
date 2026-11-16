@@ -5,53 +5,94 @@ import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+export type ThemeMode = 'system' | 'light' | 'dark';
+export type ResolvedTheme = 'light' | 'dark';
+
+export function getSystemTheme(): ResolvedTheme {
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
+}
+
+export function getStoredThemeMode(): ThemeMode {
+  if (typeof window === 'undefined') return 'system';
+  try {
+    const stored = localStorage.getItem('datascope-theme');
+    if (stored === 'dark') return 'dark';
+    if (stored === 'light') return 'light';
+    return 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+export function resolveTheme(mode: ThemeMode): ResolvedTheme {
+  if (mode === 'dark') return 'dark';
+  if (mode === 'light') return 'light';
+  return getSystemTheme();
+}
+
+export function applyThemeToDom(resolved: ResolvedTheme): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (resolved === 'dark') {
+    root.classList.add('dark');
+    root.classList.remove('light');
+    root.style.colorScheme = 'dark';
+  } else {
+    root.classList.remove('dark');
+    root.classList.add('light');
+    root.style.colorScheme = 'light';
+  }
+}
+
+export function setThemeMode(mode: ThemeMode): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (mode === 'system') {
+      localStorage.removeItem('datascope-theme');
+    } else {
+      localStorage.setItem('datascope-theme', mode);
+    }
+  } catch {
+    // LocalStorage might be restricted
+  }
+  const resolved = resolveTheme(mode);
+  applyThemeToDom(resolved);
+  window.dispatchEvent(new Event('datascope-theme-change'));
+}
+
 export function ThemeToggle({ className }: { className?: string }) {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<ResolvedTheme>('light');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const syncTheme = () => {
-      const stored = localStorage.getItem('datascope-theme');
-      if (stored === 'dark') {
-        setTheme('dark');
-      } else if (stored === 'light') {
-        setTheme('light');
-      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        setTheme('dark');
-      } else {
-        setTheme('light');
-      }
+      const mode = getStoredThemeMode();
+      const resolved = resolveTheme(mode);
+      setTheme(resolved);
+      applyThemeToDom(resolved);
     };
 
     syncTheme();
     window.addEventListener('datascope-theme-change', syncTheme);
+    window.addEventListener('storage', syncTheme);
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleMedia = () => {
-      if (!localStorage.getItem('datascope-theme')) {
-        syncTheme();
-      }
-    };
-    mql.addEventListener('change', handleMedia);
+    mql.addEventListener('change', syncTheme);
 
     return () => {
       window.removeEventListener('datascope-theme-change', syncTheme);
-      mql.removeEventListener('change', handleMedia);
+      window.removeEventListener('storage', syncTheme);
+      mql.removeEventListener('change', syncTheme);
     };
   }, []);
 
   const toggle = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
-    localStorage.setItem('datascope-theme', next);
-    if (next === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
-    window.dispatchEvent(new Event('datascope-theme-change'));
+    setThemeMode(next);
   };
 
   if (!mounted) {
@@ -70,7 +111,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <Button
       variant="ghost"
-      className={className ?? 'min-h-9 w-9 p-0'}
+      className={className ?? 'min-h-9 w-9 p-0 cursor-pointer'}
       onClick={toggle}
       aria-label={
         theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
@@ -97,45 +138,26 @@ export function ThemeToggle({ className }: { className?: string }) {
 }
 
 export function ThemeSelector() {
-  const [mode, setMode] = useState<'system' | 'light' | 'dark'>('system');
+  const [mode, setMode] = useState<ThemeMode>('system');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const sync = () => {
-      const stored = localStorage.getItem('datascope-theme');
-      if (stored === 'dark') setMode('dark');
-      else if (stored === 'light') setMode('light');
-      else setMode('system');
+      setMode(getStoredThemeMode());
     };
     sync();
     window.addEventListener('datascope-theme-change', sync);
+    window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener('datascope-theme-change', sync);
+      window.removeEventListener('storage', sync);
     };
   }, []);
 
-  const change = (next: 'system' | 'light' | 'dark') => {
+  const change = (next: ThemeMode) => {
     setMode(next);
-    if (next === 'system') {
-      localStorage.removeItem('datascope-theme');
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
-        document.documentElement.classList.remove('light');
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.remove('light');
-      }
-    } else if (next === 'dark') {
-      localStorage.setItem('datascope-theme', 'dark');
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      localStorage.setItem('datascope-theme', 'light');
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
-    window.dispatchEvent(new Event('datascope-theme-change'));
+    setThemeMode(next);
   };
 
   if (!mounted) return null;
@@ -150,7 +172,7 @@ export function ThemeSelector() {
             change(key);
           }}
           className={cn(
-            'flex min-h-9 items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium capitalize transition-colors',
+            'flex min-h-9 items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium capitalize transition-colors cursor-pointer',
             mode === key
               ? 'border-primary bg-primary/10 font-semibold text-primary'
               : 'border-border bg-surface text-muted-foreground hover:bg-muted hover:text-foreground',
