@@ -15,7 +15,6 @@ import {
   Shield,
   SlidersHorizontal,
   Menu,
-  ArrowUpRight,
 } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { datasetSlice } from '@/store/slices/dataset-slice';
@@ -25,6 +24,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { PreferencesBridge } from '@/features/settings/preferences';
 import { ThemeToggle } from './theme-toggle';
+import { Footer } from './footer';
 
 const navigation = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -231,11 +231,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           {children}
         </main>
-        <footer className="px-4 py-6 text-xs text-muted-foreground sm:px-6">
-          <Link className="inline-flex min-h-10 items-center gap-1" href="/">
-            DataScope <ArrowUpRight size={14} aria-hidden="true" />
-          </Link>
-        </footer>
+        <Footer
+          containerClassName="max-w-full px-0 sm:px-0 lg:px-0"
+          className="border-t border-border px-4 py-4 sm:px-6"
+        />
       </div>
     </div>
   );
