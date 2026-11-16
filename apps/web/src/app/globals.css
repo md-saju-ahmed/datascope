@@ -49,7 +49,7 @@
   }
 }
 
-.dark img[src*="logo.svg"] {
+.dark img[src*='logo.svg'] {
   filter: brightness(0) invert(1);
 }
 

@@ -72,13 +72,25 @@ export function ThemeToggle({ className }: { className?: string }) {
       variant="ghost"
       className={className ?? 'min-h-9 w-9 p-0'}
       onClick={toggle}
-      aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-      title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+      aria-label={
+        theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
+      }
+      title={
+        theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
+      }
     >
       {theme === 'dark' ? (
-        <Sun size={17} className="text-foreground transition-transform hover:rotate-45" aria-hidden="true" />
+        <Sun
+          size={17}
+          className="text-foreground transition-transform hover:rotate-45"
+          aria-hidden="true"
+        />
       ) : (
-        <Moon size={17} className="text-foreground transition-transform hover:-rotate-12" aria-hidden="true" />
+        <Moon
+          size={17}
+          className="text-foreground transition-transform hover:-rotate-12"
+          aria-hidden="true"
+        />
       )}
     </Button>
   );
@@ -98,7 +110,9 @@ export function ThemeSelector() {
     };
     sync();
     window.addEventListener('datascope-theme-change', sync);
-    return () => window.removeEventListener('datascope-theme-change', sync);
+    return () => {
+      window.removeEventListener('datascope-theme-change', sync);
+    };
   }, []);
 
   const change = (next: 'system' | 'light' | 'dark') => {
@@ -132,7 +146,9 @@ export function ThemeSelector() {
         <button
           key={key}
           type="button"
-          onClick={() => change(key)}
+          onClick={() => {
+            change(key);
+          }}
           className={cn(
             'flex min-h-9 items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium capitalize transition-colors',
             mode === key
@@ -140,7 +156,11 @@ export function ThemeSelector() {
               : 'border-border bg-surface text-muted-foreground hover:bg-muted hover:text-foreground',
           )}
         >
-          {key === 'system' ? 'System preference' : key === 'light' ? 'Light' : 'Dark'}
+          {key === 'system'
+            ? 'System preference'
+            : key === 'light'
+              ? 'Light'
+              : 'Dark'}
         </button>
       ))}
     </div>
