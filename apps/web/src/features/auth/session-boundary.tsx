@@ -29,36 +29,43 @@ export function SessionBoundary({
     'checking',
   );
   const busy = useRef(false);
-  const check = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    setState('checking');
-    const request = dispatch(
-      authApi.endpoints.getSession.initiate(undefined, {
-        subscribe: false,
-        forceRefetch: true,
-      }),
-    );
-    try {
-      await request.unwrap();
-      setState('ready');
-    } catch (error) {
-      setState(
-        typeof error === 'object' &&
-          error !== null &&
-          'status' in error &&
-          error.status === 401
-          ? 'ready'
-          : 'unavailable',
+  const check = useCallback(
+    async (isBackground = false) => {
+      if (busy.current) return;
+      busy.current = true;
+      if (!isBackground) {
+        setState('checking');
+      }
+      const request = dispatch(
+        authApi.endpoints.getSession.initiate(undefined, {
+          subscribe: false,
+          forceRefetch: true,
+        }),
       );
-    } finally {
-      busy.current = false;
-    }
-  }, [dispatch]);
+      try {
+        await request.unwrap();
+        setState('ready');
+      } catch (error) {
+        setState(
+          typeof error === 'object' &&
+            error !== null &&
+            'status' in error &&
+            error.status === 401
+            ? 'ready'
+            : 'unavailable',
+        );
+      } finally {
+        busy.current = false;
+      }
+    },
+    [dispatch],
+  );
   useEffect(() => {
-    void check();
+    void check(false);
     const recover = () => {
-      if (!publicAuth && document.visibilityState === 'visible') void check();
+      if (!publicAuth && document.visibilityState === 'visible') {
+        void check(true);
+      }
     };
     window.addEventListener('focus', recover);
     window.addEventListener('online', recover);
@@ -103,7 +110,7 @@ export function SessionBoundary({
         </p>
         <Button
           onClick={() => {
-            void check();
+            void check(false);
           }}
         >
           Try again
