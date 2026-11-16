@@ -2,13 +2,87 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export function DataLoading() {
+export function DataLoading({
+  variant = 'cards',
+  count = 4,
+}: {
+  variant?: 'cards' | 'table' | 'rows';
+  count?: number;
+} = {}) {
+  if (variant === 'table') {
+    return (
+      <div
+        role="status"
+        aria-label="Loading data"
+        className="space-y-4 animate-pulse"
+      >
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-40 rounded" />
+          <Skeleton className="h-9 w-28 rounded-lg" />
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-4 space-y-3">
+          <Skeleton className="h-10 w-full rounded-lg" />
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Skeleton key={n} className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'rows') {
+    return (
+      <div
+        role="status"
+        aria-label="Loading data"
+        className="space-y-3 animate-pulse"
+      >
+        {Array.from({ length: count }, (_, i) => (
+          <div
+            key={i}
+            className="rounded-xl border border-border bg-surface p-4 space-y-2.5"
+          >
+            <Skeleton className="h-4 w-1/3 rounded" />
+            <Skeleton className="h-3.5 w-2/3 rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div role="status" aria-label="Loading data" className="space-y-4">
-      <Skeleton className="h-8 w-52" />
-      {[1, 2, 3].map((n) => (
-        <Skeleton key={n} className="h-20 w-full" />
-      ))}
+    <div
+      role="status"
+      aria-label="Loading data"
+      className="space-y-4 animate-pulse"
+    >
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-36 rounded" />
+        <Skeleton className="h-9 w-28 rounded-lg" />
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        {Array.from({ length: count }, (_, i) => (
+          <div
+            key={i}
+            className="flex min-w-0 flex-col rounded-xl border border-border bg-surface p-5 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <Skeleton className="size-5 rounded" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-5 w-2/3 rounded" />
+            <Skeleton className="h-4 w-full rounded" />
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Skeleton className="h-8 rounded" />
+              <Skeleton className="h-8 rounded" />
+            </div>
+            <div className="flex gap-3 border-t border-border pt-4">
+              <Skeleton className="h-9 w-28 rounded-lg" />
+              <Skeleton className="h-9 w-32 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

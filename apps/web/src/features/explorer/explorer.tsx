@@ -446,7 +446,7 @@ function ExplorerResults({
           : ''}
       </p>
       {!data ? (
-        <DataLoading />
+        <DataLoading variant="table" />
       ) : !data.data.length ? (
         <div className="rounded-xl border border-dashed border-border p-10">
           <h2 className="text-lg font-semibold">

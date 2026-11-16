@@ -12,6 +12,7 @@ import { authSlice } from '@/store/slices/auth-slice';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RouteLoading } from '@/components/layout/route-state';
 import { safeReturnPath, signInPath } from './navigation';
 
 export function SessionBoundary({
@@ -27,7 +28,7 @@ export function SessionBoundary({
   const user = useAppSelector(authSlice.selectors.selectUser);
   const initial = useRef(user);
   const [state, setState] = useState<'checking' | 'ready' | 'unavailable'>(
-    'checking',
+    user ? 'ready' : 'checking',
   );
   const busy = useRef(false);
   const check = useCallback(
@@ -62,7 +63,7 @@ export function SessionBoundary({
     [dispatch],
   );
   useEffect(() => {
-    void check(false);
+    void check(!publicAuth && !!user);
     const recover = () => {
       if (!publicAuth && document.visibilityState === 'visible') {
         void check(true);
@@ -147,13 +148,7 @@ export function SessionBoundary({
       );
     }
 
-    return (
-      <div role="status" className="mx-auto max-w-lg space-y-4 p-8">
-        <Skeleton className="h-2 w-20 rounded bg-primary" />
-        <Skeleton className="h-4 w-48 rounded" />
-        <span className="sr-only">Checking your session…</span>
-      </div>
-    );
+    return <RouteLoading />;
   }
   if (state === 'unavailable')
     return (

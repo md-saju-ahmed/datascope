@@ -19,11 +19,59 @@ export function AccessDenied() {
 }
 export function RouteLoading() {
   return (
-    <div role="status" aria-label="Loading page" className="space-y-6">
+    <div
+      role="status"
+      aria-label="Loading page"
+      className="space-y-7 animate-pulse"
+    >
       <span className="sr-only">Loading page…</span>
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-4 w-64 max-w-full" />
-      <Skeleton className="h-48 w-full" />
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-24 rounded" />
+          <Skeleton className="h-8 w-48 rounded-lg" />
+          <Skeleton className="h-4 w-72 max-w-full rounded" />
+        </div>
+        <Skeleton className="h-10 w-28 rounded-lg" />
+      </header>
+
+      {/* Metric Cards Skeleton */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {[1, 2, 3].map((n) => (
+          <div
+            key={n}
+            className="rounded-xl border border-border bg-surface p-5 space-y-3"
+          >
+            <Skeleton className="h-4 w-28 rounded" />
+            <Skeleton className="h-8 w-16 rounded" />
+            <Skeleton className="h-3.5 w-44 rounded" />
+          </div>
+        ))}
+      </div>
+
+      {/* Content Grid Skeleton */}
+      <div className="grid gap-5 xl:grid-cols-2">
+        {[1, 2].map((n) => (
+          <div
+            key={n}
+            className="rounded-xl border border-border bg-surface p-6 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <Skeleton className="size-5 rounded" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-5 w-2/3 rounded" />
+            <Skeleton className="h-4 w-full rounded" />
+            <div className="grid grid-cols-2 gap-4 py-2">
+              <Skeleton className="h-8 rounded" />
+              <Skeleton className="h-8 rounded" />
+            </div>
+            <div className="flex gap-3 border-t border-border pt-4">
+              <Skeleton className="h-9 w-28 rounded-lg" />
+              <Skeleton className="h-9 w-36 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

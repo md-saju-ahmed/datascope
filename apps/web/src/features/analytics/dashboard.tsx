@@ -7,6 +7,7 @@ import {
 } from '@/store/api/views-api';
 import { useAppSelector } from '@/store/hooks';
 import { DataFailure, DataLoading } from '@/features/datasets/data-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { PlatformSummary } from './analytics';
 import { Metric } from './widgets';
@@ -40,26 +41,53 @@ export function Overview() {
       </header>
       {user?.role === 'admin' && <PlatformSummary />}
       <div className="grid gap-4 md:grid-cols-3">
-        {datasets.currentData && (
+        {datasets.currentData ? (
           <Metric
             label="Available datasets"
             value={String(datasets.currentData.pageInfo.total)}
             note="Datasets currently available to your account"
           />
+        ) : (
+          <section
+            aria-label="Loading available datasets"
+            className="min-w-0 space-y-3 rounded-xl border border-border bg-surface p-5 animate-pulse"
+          >
+            <Skeleton className="h-4 w-32 rounded" />
+            <Skeleton className="h-9 w-20 rounded" />
+            <Skeleton className="h-3.5 w-48 rounded" />
+          </section>
         )}
-        {views.currentData && (
+        {views.currentData ? (
           <Metric
             label="Available saved views"
             value={String(views.currentData.pageInfo.total)}
             note="Owned and authorized shared views"
           />
+        ) : (
+          <section
+            aria-label="Loading available saved views"
+            className="min-w-0 space-y-3 rounded-xl border border-border bg-surface p-5 animate-pulse"
+          >
+            <Skeleton className="h-4 w-36 rounded" />
+            <Skeleton className="h-9 w-20 rounded" />
+            <Skeleton className="h-3.5 w-44 rounded" />
+          </section>
         )}
-        {history.currentData && (
+        {history.currentData ? (
           <Metric
             label="Recent executed searches"
             value={String(history.currentData.pageInfo.total)}
             note="Your retained search history, not a lifetime total"
           />
+        ) : (
+          <section
+            aria-label="Loading recent searches"
+            className="min-w-0 space-y-3 rounded-xl border border-border bg-surface p-5 animate-pulse"
+          >
+            <Skeleton className="h-4 w-40 rounded" />
+            <Skeleton className="h-9 w-20 rounded" />
+            <Skeleton className="h-3.5 w-52 rounded" />
+          </section>
         )}
       </div>
       <section aria-label="Dataset shortcuts" className="space-y-4">
@@ -83,7 +111,7 @@ export function Overview() {
             }}
           />
         ) : !datasets.currentData ? (
-          <DataLoading />
+          <DataLoading count={2} />
         ) : (
           <>
             {!datasets.currentData.data.length && (
@@ -150,7 +178,7 @@ export function Overview() {
               }}
             />
           ) : !history.currentData ? (
-            <DataLoading />
+            <DataLoading variant="rows" count={3} />
           ) : (
             <>
               {!history.currentData.data.length && (
@@ -198,7 +226,7 @@ export function Overview() {
               }}
             />
           ) : !views.currentData ? (
-            <DataLoading />
+            <DataLoading variant="rows" count={3} />
           ) : (
             <>
               {!views.currentData.data.length && (

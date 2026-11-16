@@ -50,7 +50,7 @@ export function SearchHistory() {
           }}
         />
       ) : !result.currentData ? (
-        <DataLoading />
+        <DataLoading variant="rows" count={5} />
       ) : (
         <>
           {!result.currentData.data.length && (

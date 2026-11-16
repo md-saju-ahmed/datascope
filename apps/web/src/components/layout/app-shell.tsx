@@ -69,14 +69,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const items = navigation.filter(
     (item) => item.href !== '/analytics' || currentUser.role !== 'viewer',
   );
-  const current =
-    [...navigation, ...administration].find((item) => pathname === item.href)
-      ?.label ??
-    (routeDataset
-      ? pathname.endsWith('/fields')
-        ? 'Field information'
-        : 'Data Explorer'
-      : 'Workspace');
   function links(list: typeof navigation, onNavigate?: () => void) {
     return list.map(({ href, label, icon: Icon }) => (
       <Link
@@ -85,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           href === '/search'
             ? activeDataset
               ? `/datasets/${activeDataset}/explore`
-              : '/datasets'
+              : '/search'
             : href
         }
         {...(onNavigate ? { onClick: onNavigate } : {})}
@@ -145,7 +137,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r border-border bg-surface p-4 lg:flex">
+      <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto scrollbar-sleek border-r border-border bg-surface p-4 lg:flex">
         <Link
           href="/dashboard"
           className="mb-8 flex min-h-10 items-center gap-3 px-3 text-xl font-bold tracking-tight text-foreground transition-opacity hover:opacity-90"
@@ -167,7 +159,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           Permission-aware workspace
         </p>
       </aside>
-      <div className="min-w-0">
+      <div className="flex min-w-0 flex-1 flex-col min-h-dvh">
         <header className="flex min-h-18 flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <div className="lg:hidden">
@@ -196,17 +188,20 @@ export function AppShell({ children }: { children: ReactNode }) {
                 })}
               </Sheet>
             </div>
-            <div className="flex items-center gap-2.5">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 text-sm font-semibold text-foreground lg:hidden"
+            >
               <img
                 src="/logo.svg"
                 alt=""
                 width={22}
                 height={22}
-                className="h-5.5 w-5.5 lg:hidden"
+                className="h-5.5 w-5.5"
                 aria-hidden="true"
               />
-              <span className="text-sm font-medium">{current}</span>
-            </div>
+              <span>DataScope</span>
+            </Link>
           </div>
           <div className="flex min-w-0 max-w-full flex-wrap items-center gap-3 sm:gap-4">
             <ThemeToggle />
@@ -227,13 +222,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="min-w-0 p-4 outline-none sm:p-6 lg:p-8"
+          className="min-w-0 flex-1 p-4 outline-none sm:p-6 lg:p-8"
         >
           {children}
         </main>
         <Footer
           containerClassName="max-w-full px-0 sm:px-0 lg:px-0"
-          className="border-t border-border px-4 py-4 sm:px-6"
+          className="mt-auto border-t border-border px-4 py-4 sm:px-6"
         />
       </div>
     </div>
