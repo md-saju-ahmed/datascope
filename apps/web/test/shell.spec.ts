@@ -61,6 +61,75 @@ test('public boundaries and unauthenticated/forged private entry', async ({
   await page.goto('/dashboard');
   await expect(page).toHaveURL(/\/login(?:\?|$)/);
 });
+test('public navbar updates after login and provides responsive mobile navigation', async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Public Navigation' })
+      .getByRole('link', { name: 'Sign in' }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Public Navigation' })
+      .getByRole('link', { name: 'Sign up' }),
+  ).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const trigger = page.getByRole('button', { name: 'Open navigation' });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Sign in' })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Sign up' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  await authenticate(context, 'viewer');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Public Navigation' })
+      .getByRole('link', { name: 'Sign in' }),
+  ).toHaveCount(0);
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Public Navigation' })
+      .getByRole('link', { name: 'Dashboard' }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Public Navigation' })
+      .getByRole('button', { name: 'Sign out' }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Public Navigation' })
+      .getByText('viewer@fe01.test'),
+  ).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('viewer@fe01.test')).toBeVisible();
+  await expect(
+    dialog.getByRole('link', { name: 'Dashboard' }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole('button', { name: 'Sign out' }),
+  ).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Sign in' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+});
 test('backend outage fails closed with recoverable error and no identity leak', async ({
   page,
   context,

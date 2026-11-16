@@ -65,8 +65,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
       </main>
     );
+  const currentUser = user;
   const items = navigation.filter(
-    (item) => item.href !== '/analytics' || user.role !== 'viewer',
+    (item) => item.href !== '/analytics' || currentUser.role !== 'viewer',
   );
   const current =
     [...navigation, ...administration].find((item) => pathname === item.href)
@@ -76,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ? 'Field information'
         : 'Data Explorer'
       : 'Workspace');
-  function links(list: typeof navigation) {
+  function links(list: typeof navigation, onNavigate?: () => void) {
     return list.map(({ href, label, icon: Icon }) => (
       <Link
         key={href}
@@ -87,6 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               : '/datasets'
             : href
         }
+        {...(onNavigate ? { onClick: onNavigate } : {})}
         aria-current={
           pathname === href ||
           (href === '/search' &&
@@ -109,28 +111,31 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Link>
     ));
   }
-  const nav = (
-    <nav aria-label="Main navigation" className="space-y-1">
-      {links(items)}
-      {user.role !== 'viewer' && (
-        <Link
-          href="/search?mode=advanced"
-          className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm text-muted-foreground hover:bg-muted"
-        >
-          <SlidersHorizontal size={18} aria-hidden="true" />
-          Advanced Search
-        </Link>
-      )}
-      {user.role === 'admin' && (
-        <>
-          <p className="px-3 pb-2 pt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Administration
-          </p>
-          {links(administration)}
-        </>
-      )}
-    </nav>
-  );
+  function renderNav(onNavigate?: () => void) {
+    return (
+      <nav aria-label="Main navigation" className="space-y-1">
+        {links(items, onNavigate)}
+        {currentUser.role !== 'viewer' && (
+          <Link
+            href="/search?mode=advanced"
+            {...(onNavigate ? { onClick: onNavigate } : {})}
+            className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm text-muted-foreground hover:bg-muted"
+          >
+            <SlidersHorizontal size={18} aria-hidden="true" />
+            Advanced Search
+          </Link>
+        )}
+        {currentUser.role === 'admin' && (
+          <>
+            <p className="px-3 pb-2 pt-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Administration
+            </p>
+            {links(administration, onNavigate)}
+          </>
+        )}
+      </nav>
+    );
+  }
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
       <PreferencesBridge />
@@ -155,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
           DataScope
         </Link>
-        {nav}
+        {renderNav()}
         <p className="mt-auto px-3 pt-8 text-xs leading-5 text-muted-foreground">
           Enterprise data discovery
           <br />
@@ -186,7 +191,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   />
                   <span className="text-lg font-bold">DataScope</span>
                 </div>
-                {nav}
+                {renderNav(() => {
+                  setOpen(false);
+                })}
               </Sheet>
             </div>
             <div className="flex items-center gap-2.5">

@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Database, Filter, ShieldCheck } from 'lucide-react';
-export default function PublicEntry() {
+import { getSession } from '@/lib/session';
+
+export default async function PublicEntry() {
+  const user = await getSession();
+
   return (
     <>
       <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3.5 py-1.5 text-xs font-medium text-foreground">
@@ -25,14 +29,29 @@ export default function PublicEntry() {
         for discovering records within your team permissions.
       </p>
       <div className="flex flex-wrap gap-3">
-        <Button asChild className="min-h-11">
-          <Link href="/login">
-            Sign in <ArrowRight size={16} aria-hidden="true" />
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="min-h-11">
-          <Link href="/register">Create Viewer account</Link>
-        </Button>
+        {user ? (
+          <>
+            <Button asChild className="min-h-11">
+              <Link href="/dashboard">
+                Go to Dashboard <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="min-h-11">
+              <Link href="/datasets">Browse Datasets</Link>
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button asChild className="min-h-11">
+              <Link href="/login">
+                Sign in <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="min-h-11">
+              <Link href="/register">Create Viewer account</Link>
+            </Button>
+          </>
+        )}
       </div>
       <div className="mt-14 grid gap-6 border-t border-border pt-8 sm:grid-cols-3">
         {[

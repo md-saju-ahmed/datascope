@@ -3,7 +3,53 @@ import { cache } from 'react';
 import { safeReturnPath, signInPath } from '../features/auth/navigation';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { authUserResponseSchema } from '@datascope/contracts';
+import { authUserResponseSchema, type CurrentUser } from '@datascope/contracts';
+
+// React cache deduplicates within one server render, never across users/requests.
+export const getSession = cache(async (): Promise<CurrentUser | null> => {
+  try {
+    const jar = await cookies();
+    const name =
+      process.env.API_SESSION_COOKIE_NAME ??
+      (process.env.NODE_ENV === 'production'
+        ? '__Host-datascope_session'
+        : 'datascope_session');
+    if (!['datascope_session', '__Host-datascope_session'].includes(name))
+      return null;
+    const sessions = jar.getAll(name);
+    const token = sessions.length === 1 ? sessions[0]?.value : undefined;
+    if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
+    const origin = new URL(
+      process.env.API_INTERNAL_ORIGIN ?? 'http://127.0.0.1:4000',
+    );
+    if (
+      !['http:', 'https:'].includes(origin.protocol) ||
+      origin.username ||
+      origin.password ||
+      origin.pathname !== '/' ||
+      origin.search ||
+      origin.hash
+    )
+      return null;
+    let response: Response;
+    try {
+      response = await fetch(new URL('/api/v1/auth/me', origin), {
+        headers: { Cookie: `${name}=${token}` },
+        cache: 'no-store',
+        redirect: 'error',
+        signal: AbortSignal.timeout(3000),
+      });
+    } catch {
+      return null;
+    }
+    if (!response.ok) return null;
+    const parsed = authUserResponseSchema.safeParse(await response.json());
+    if (!parsed.success) return null;
+    return parsed.data.data;
+  } catch {
+    return null;
+  }
+});
 
 // React cache deduplicates within one server render, never across users/requests.
 export const requireSession = cache(async () => {
