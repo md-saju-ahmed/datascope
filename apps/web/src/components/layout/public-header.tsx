@@ -85,8 +85,15 @@ export function PublicHeader({ user }: { user: CurrentUser | null }) {
           {user ? (
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
-                <User size={13} className="text-muted-foreground" aria-hidden="true" />
-                <span className="max-w-44 truncate font-medium text-foreground" title={user.email}>
+                <User
+                  size={13}
+                  className="text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <span
+                  className="max-w-44 truncate font-medium text-foreground"
+                  title={user.email}
+                >
                   {user.email}
                 </span>
                 <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
@@ -95,7 +102,8 @@ export function PublicHeader({ user }: { user: CurrentUser | null }) {
               </div>
               <Button asChild className="min-h-9 px-3">
                 <Link href="/dashboard">
-                  Dashboard <ArrowRight size={14} className="ml-1" aria-hidden="true" />
+                  Dashboard{' '}
+                  <ArrowRight size={14} className="ml-1" aria-hidden="true" />
                 </Link>
               </Button>
               <Button

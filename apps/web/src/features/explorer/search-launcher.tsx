@@ -94,7 +94,11 @@ export function SearchLauncher() {
                       {canAuthorAdvanced(user, dataset)
                         ? 'Build search'
                         : 'Open basic search'}
-                      <ArrowRight size={15} aria-hidden="true" className="ml-1.5" />
+                      <ArrowRight
+                        size={15}
+                        aria-hidden="true"
+                        className="ml-1.5"
+                      />
                     </Link>
                   </Button>
                 </div>

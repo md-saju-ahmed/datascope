@@ -49,7 +49,10 @@ export default function NotFound() {
 
           {/* Primary Action Buttons */}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Button asChild className="min-h-11 px-5 font-medium cursor-pointer">
+            <Button
+              asChild
+              className="min-h-11 px-5 font-medium cursor-pointer"
+            >
               <Link href="/dashboard">
                 <Home className="size-4" aria-hidden="true" />
                 Go to Dashboard

@@ -10,10 +10,7 @@ import { useLoginMutation, useRegisterMutation } from '@/store/api/auth-api';
 import { Button } from '@/components/ui/button';
 import { safeReturnPath } from './navigation';
 import { authError } from './errors';
-import {
-  DemoCredentials,
-  type DemoAccount,
-} from './demo-credentials';
+import { DemoCredentials, type DemoAccount } from './demo-credentials';
 
 export function AuthForm({
   registration,
@@ -188,10 +185,7 @@ export function AuthForm({
 
         {!registration && (
           <>
-            <DemoCredentials
-              onFill={handleFillDemo}
-              disabled={pending}
-            />
+            <DemoCredentials onFill={handleFillDemo} disabled={pending} />
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-border" />
@@ -207,7 +201,10 @@ export function AuthForm({
 
         <fieldset disabled={pending} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-foreground">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-foreground"
+            >
               Email address
             </label>
             <input
@@ -226,13 +223,19 @@ export function AuthForm({
               className="mt-1.5 block min-h-10 w-full rounded-lg border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground shadow-xs transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
             {errors.email && (
-              <p id="email-error" className="mt-1.5 text-xs font-medium text-destructive">
+              <p
+                id="email-error"
+                className="mt-1.5 text-xs font-medium text-destructive"
+              >
                 {errors.email}
               </p>
             )}
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-foreground">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-foreground"
+            >
               Password
             </label>
             <div className="relative mt-1.5">
@@ -277,14 +280,20 @@ export function AuthForm({
                 : 'Use your account password. Password managers and paste are supported.'}
             </p>
             {errors.password && (
-              <p id="password-error" className="mt-1.5 text-xs font-medium text-destructive">
+              <p
+                id="password-error"
+                className="mt-1.5 text-xs font-medium text-destructive"
+              >
                 {errors.password}
               </p>
             )}
           </div>
           {registration && (
             <div>
-              <label htmlFor="confirm" className="block text-sm font-medium text-foreground">
+              <label
+                htmlFor="confirm"
+                className="block text-sm font-medium text-foreground"
+              >
                 Confirm password
               </label>
               <input
@@ -302,7 +311,10 @@ export function AuthForm({
                 className="mt-1.5 block min-h-10 w-full rounded-lg border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground shadow-xs transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
               {errors.confirm && (
-                <p id="confirm-error" className="mt-1.5 text-xs font-medium text-destructive">
+                <p
+                  id="confirm-error"
+                  className="mt-1.5 text-xs font-medium text-destructive"
+                >
                   {errors.confirm}
                 </p>
               )}

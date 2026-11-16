@@ -15,7 +15,9 @@ export function DemoCredentials({
   onFill,
   disabled = false,
 }: DemoCredentialsProps) {
-  const [selectedId, setSelectedId] = useState<'analyst' | 'admin' | 'viewer' | null>(null);
+  const [selectedId, setSelectedId] = useState<
+    'analyst' | 'admin' | 'viewer' | null
+  >(null);
 
   function handleSelect(account: DemoAccount) {
     setSelectedId(account.id);
@@ -74,7 +76,9 @@ export function DemoCredentials({
               <span
                 className={cn(
                   'mt-0.5 text-[10px] leading-tight',
-                  isSelected ? 'text-primary-foreground/90' : 'text-primary font-medium',
+                  isSelected
+                    ? 'text-primary-foreground/90'
+                    : 'text-primary font-medium',
                 )}
               >
                 {account.badge}

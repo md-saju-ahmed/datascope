@@ -78,7 +78,9 @@ test('demo accounts cover analyst, admin, and viewer roles with valid login cred
   for (const account of DEMO_ACCOUNTS) {
     expect(account.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
     expect(account.password.length).toBeGreaterThanOrEqual(16);
-    expect(Buffer.byteLength(account.password, 'utf8')).toBeLessThanOrEqual(128);
+    expect(Buffer.byteLength(account.password, 'utf8')).toBeLessThanOrEqual(
+      128,
+    );
     expect(account.badge).toBeTruthy();
     expect(account.description).toBeTruthy();
     expect(

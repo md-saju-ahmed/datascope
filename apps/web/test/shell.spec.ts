@@ -120,12 +120,8 @@ test('public navbar updates after login and provides responsive mobile navigatio
   await trigger.click();
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('viewer@fe01.test')).toBeVisible();
-  await expect(
-    dialog.getByRole('link', { name: 'Dashboard' }),
-  ).toBeVisible();
-  await expect(
-    dialog.getByRole('button', { name: 'Sign out' }),
-  ).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Sign out' })).toBeVisible();
   await expect(dialog.getByRole('link', { name: 'Sign in' })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
